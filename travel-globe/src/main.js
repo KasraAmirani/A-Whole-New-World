@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Globe from 'three-globe';
 import { feature } from 'topojson-client';
-import { loadCities } from './api.js'; // calls /api/cities
+// NEW: also import loadWeather (existing loadCities unchanged)
+import { loadCities, loadWeather } from './api.js'; // calls /api/cities + /api/weather
 
 const appEl = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -14,9 +15,17 @@ const tooltipEl =
   document.getElementById('tooltip') ||
   document.getElementById('country-tooltip');
 
-// search UI (already in index.html)
+// search UI
 const searchInput = document.getElementById('search-input');
 const searchList = document.getElementById('search-results');
+// favorites bar
+const favBarEl = document.getElementById('favorites-bar');
+
+// trip tray UI
+const tripTrayEl = document.getElementById('trip-tray');
+const tripStopsEl = document.getElementById('trip-stops');
+const tripStatsEl = document.getElementById('trip-stats');
+const tripClearBtn = document.getElementById('trip-clear');
 
 /* ---------- TAGS + CITY MEDIA ---------- */
 
@@ -161,6 +170,44 @@ function isFavorite(city) {
   return favoriteCities.has(makeCityKey(city));
 }
 
+/* ---------- favorites bar under search ---------- */
+
+let allCities = []; // declared here so renderFavoriteBar can see it
+
+function renderFavoriteBar() {
+  if (!favBarEl || !allCities.length) return;
+
+  const favorites = allCities.filter(c => favoriteCities.has(makeCityKey(c)));
+  if (!favorites.length) {
+    favBarEl.innerHTML = '';
+    return;
+  }
+
+  favBarEl.innerHTML = favorites.map(c => `
+    <button
+      class="fav-chip"
+      data-city="${c.name}"
+      data-country="${c.country}"
+      type="button"
+    >
+      ★ ${c.name}
+    </button>
+  `).join('');
+
+  favBarEl.querySelectorAll('.fav-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.getAttribute('data-city');
+      const country = btn.getAttribute('data-country');
+      const city = allCities.find(
+        c => c.name === name && c.country === country
+      );
+      if (city) {
+        startFlyToCity(city);
+      }
+    });
+  });
+}
+
 /* ---------- lightweight image preloader ---------- */
 
 const IMAGE_CACHE = new Set();
@@ -191,6 +238,7 @@ function fatal(msg) {
 }
 
 /* ---------- three.js core ---------- */
+
 if (!canvas) fatal('#stage canvas not found in index.html');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -198,7 +246,7 @@ renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1020);
+scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
 camera.position.set(0, 0, 280);
@@ -215,6 +263,7 @@ dir.position.set(5, 3, 1);
 scene.add(dir);
 
 /* ---------- faint star field ---------- */
+
 function addStarField({ count = 1800, radius = 1400, size = 1.1, opacity = 1.0 } = {}) {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
@@ -241,6 +290,7 @@ function addStarField({ count = 1800, radius = 1400, size = 1.1, opacity = 1.0 }
 addStarField();
 
 /* ---------- globe ---------- */
+
 const globe = new Globe()
   .globeImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
   .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
@@ -269,7 +319,7 @@ const markerTextures = {};         // { normal: Texture, fav: Texture }
 const cityMarkers = new Map();     // key -> THREE.Sprite
 
 const NORMAL_COLOR = '#ffd977';    // yellow
-const FAV_COLOR    = '#eb2020ff';    // red
+const FAV_COLOR    = '#eb2020ff';  // red
 
 function makeRingTexture(colorHex) {
   const size = 128;
@@ -326,7 +376,7 @@ function createCityMarkerSprite(city) {
     depthWrite: true
   });
   const sprite = new THREE.Sprite(mat);
-  const scale = GLOBE_R * 0.012; // tweak this for size
+  const scale = GLOBE_R * 0.012; // size of the dot marker
   sprite.scale.set(scale, scale, 1);
   sprite.userData.city = city;
   return sprite;
@@ -429,6 +479,23 @@ function ensurePanelExtraStyles() {
       border-color: #facc15;
     }
 
+    /* trip planner toggle button in panel header */
+    .trip-btn {
+      border: 0;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 12px;
+      background: rgba(15,23,42,0.9);
+      color: #e5e7eb;
+      border: 1px solid rgba(59,130,246,0.85);
+    }
+    .trip-btn.in-trip {
+      background: rgba(34,197,94,0.18);
+      color: #bbf7d0;
+      border-color: rgba(34,197,94,0.9);
+    }
+
     .panel-photos {
       display: grid;
       grid-template-columns: 1fr;
@@ -455,6 +522,57 @@ function ensurePanelExtraStyles() {
     .panel-photo img:hover {
       transform: scale(1.04);
       filter: brightness(1.2);
+    }
+
+    /* inline styles for the weather block inside the panel */
+    .weather-block {
+      margin: 0.5rem 0 0.2rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.95));
+      font-size: 12px;
+    }
+    .weather-label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 10px;
+      opacity: 0.8;
+      margin-bottom: 2px;
+    }
+    .weather-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .weather-icon {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .weather-icon img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .weather-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: baseline;
+    }
+    .weather-temp {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .weather-desc {
+      opacity: 0.9;
+    }
+    .weather-meta {
+      font-size: 11px;
+      opacity: 0.8;
     }
   `;
   document.head.appendChild(style);
@@ -519,6 +637,91 @@ function renderCityContent(city) {
   container.innerHTML = html;
 }
 
+// fetch + inject current weather into the open panel for this city
+async function fetchAndRenderWeather(city) {
+  const block = panelInnerEl.querySelector('#weather-block');
+  if (!block) return;
+
+  const bodyEl = block.querySelector('.weather-body');
+  const iconEl = block.querySelector('.weather-icon');
+  if (!bodyEl) return;
+
+  // Reset state for this city
+  bodyEl.textContent = 'Loading...';
+  if (iconEl) iconEl.innerHTML = '';
+
+  // If coordinates are missing, fail gracefully without breaking the panel
+  if (typeof city.lat !== 'number' || typeof city.lng !== 'number') {
+    bodyEl.textContent = 'No coordinates for weather.';
+    return;
+  }
+
+  try {
+    const data = await loadWeather(city.lat, city.lng);
+
+    if (!data) {
+      bodyEl.textContent = 'No weather data available.';
+      if (iconEl) iconEl.innerHTML = '';
+      return;
+    }
+
+    const parts = [];
+
+    if (typeof data.tempC === 'number') {
+      parts.push(`<span class="weather-temp">${Math.round(data.tempC)}°C</span>`);
+    }
+
+    let descText = null;
+    if (data.description) {
+      descText =
+        data.description.charAt(0).toUpperCase() + data.description.slice(1);
+      parts.push(`<span class="weather-desc">${descText}</span>`);
+    }
+
+    const meta = [];
+    if (typeof data.feelsLikeC === 'number') {
+      meta.push(`feels like ${Math.round(data.feelsLikeC)}°C`);
+    }
+    if (data.location && data.location !== city.name) {
+      meta.push(`near ${data.location}`);
+    }
+
+    if (meta.length) {
+      parts.push(`<span class="weather-meta">${meta.join(' · ')}</span>`);
+    }
+
+    // Set icon if available
+    if (iconEl) {
+      if (data.icon) {
+        const iconUrl = `https://openweathermap.org/img/wn/${encodeURIComponent(
+          data.icon
+        )}@2x.png`;
+        const alt = descText || 'Weather icon';
+        iconEl.innerHTML = `
+          <img
+            src="${iconUrl}"
+            alt="${alt}"
+            loading="lazy"
+            decoding="async"
+          />
+        `;
+      } else {
+        iconEl.innerHTML = '';
+      }
+    }
+
+    if (!parts.length) {
+      bodyEl.textContent = 'No weather data available.';
+    } else {
+      bodyEl.innerHTML = parts.join(' ');
+    }
+  } catch (e) {
+    console.error('Weather error', e);
+    bodyEl.textContent = 'Weather currently unavailable.';
+    if (iconEl) iconEl.innerHTML = '';
+  }
+}
+
 /* ---------- panel ---------- */
 
 function openPanel(city) {
@@ -526,6 +729,7 @@ function openPanel(city) {
   currentTag = 'all'; // reset to all whenever you open a city
 
   const fav = isFavorite(city);
+  const inTrip = cityInTrip(city); // current trip membership state
 
   panelInnerEl.innerHTML = `
     <div class="panel-header">
@@ -542,11 +746,29 @@ function openPanel(city) {
         >
           ${fav ? '★ Saved' : '☆ Save'}
         </button>
+        <!-- trip planner toggle button in the panel header -->
+        <button
+          class="trip-btn ${inTrip ? 'in-trip' : ''}"
+          id="trip-btn"
+          type="button"
+          aria-pressed="${inTrip}"
+        >
+          ${inTrip ? '✓ In trip' : '+ Add to trip'}
+        </button>
         <button class="close-btn" id="close-btn" type="button">Close</button>
       </div>
     </div>
     <div class="panel-text">
       <p>${city.name} is a great starting point for exploring ${city.country}.</p>
+
+      <!-- inline weather block; text is filled by fetchAndRenderWeather(city) -->
+      <div id="weather-block" class="weather-block">
+        <div class="weather-label">Current weather</div>
+        <div class="weather-main">
+          <div class="weather-icon" aria-hidden="true"></div>
+          <div class="weather-body">Loading...</div>
+        </div>
+      </div>
 
       <div class="tag-row">
         ${TAG_DEFS.map(t => `
@@ -565,6 +787,9 @@ function openPanel(city) {
   `;
 
   panelEl.classList.add('open');
+
+  // kick off weather fetch (non-blocking)
+  fetchAndRenderWeather(city);
 
   // close
   document
@@ -591,6 +816,22 @@ function openPanel(city) {
 
       // update marker color (yellow ↔ red)
       updateCityMarker(city);
+      // refresh favorites bar under search
+      renderFavoriteBar();
+    });
+  }
+
+  // trip planner toggle from the panel
+  const tripBtn = document.getElementById('trip-btn');
+  if (tripBtn) {
+    tripBtn.addEventListener('click', () => {
+      // use existing logic so arcs + tray stay in sync
+      toggleCityInTrip(city);
+
+      const nowInTrip = cityInTrip(city);
+      tripBtn.classList.toggle('in-trip', nowInTrip);
+      tripBtn.textContent = nowInTrip ? '✓ In trip' : '+ Add to trip';
+      tripBtn.setAttribute('aria-pressed', nowInTrip ? 'true' : 'false');
     });
   }
 
@@ -779,6 +1020,185 @@ function worldToLatLng(world) {
   return { lat, lng: lon };
 }
 
+/* ---------- Trip plan state & helpers ---------- */
+
+const tripPlan = []; // array of city objects, in order of selection
+
+// helper to check if a city is currently in the trip
+function cityInTrip(city) {
+  const key = makeCityKey(city);
+  return tripPlan.some(c => makeCityKey(c) === key);
+}
+
+function toggleCityInTrip(city) {
+  const key = makeCityKey(city);
+  const idx = tripPlan.findIndex(c => makeCityKey(c) === key);
+  if (idx === -1) {
+    tripPlan.push(city);
+  } else {
+    tripPlan.splice(idx, 1);
+  }
+  recomputeTripUIAndArcs();
+}
+
+function deg2rad(d) {
+  return d * Math.PI / 180;
+}
+
+function distanceKm(a, b) {
+  const R = 6371; // Earth radius in km
+  const dLat = deg2rad(b.lat - a.lat);
+  const dLon = deg2rad(b.lng - a.lng);
+  const lat1 = deg2rad(a.lat);
+  const lat2 = deg2rad(b.lat);
+
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLon = Math.sin(dLon / 2);
+  const x =
+    sinDLat * sinDLat +
+    Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  return R * c;
+}
+
+function formatHours(hours) {
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function recomputeTripStats() {
+  if (!tripStatsEl) return;
+
+  if (tripPlan.length === 0) {
+    tripStatsEl.textContent = 'Click a city to start a trip.';
+    return;
+  }
+
+  if (tripPlan.length === 1) {
+    tripStatsEl.textContent = 'Select another city to see route.';
+    return;
+  }
+
+  let totalKm = 0;
+  for (let i = 0; i < tripPlan.length - 1; i++) {
+    totalKm += distanceKm(tripPlan[i], tripPlan[i + 1]);
+  }
+
+  const legs = tripPlan.length - 1;
+  const cruiseSpeed = 800; // km/h
+  const layoverHours = 0.6; // rough overhead per leg
+  const flightHours = totalKm / cruiseSpeed + legs * layoverHours;
+
+  tripStatsEl.textContent =
+    `${tripPlan.length} stops · ${totalKm.toFixed(0)} km · ~${formatHours(flightHours)}`;
+}
+
+function recomputeTripArcs() {
+  if (tripPlan.length < 2) {
+    globe.arcsData([]);
+    return;
+  }
+
+  const arcs = [];
+  for (let i = 0; i < tripPlan.length - 1; i++) {
+    const a = tripPlan[i];
+    const b = tripPlan[i + 1];
+    arcs.push({
+      startLat: a.lat,
+      startLng: a.lng,
+      endLat: b.lat,
+      endLng: b.lng,
+      color: ['rgba(255,220,120,0.95)', 'rgba(248,113,113,0.98)']
+    });
+  }
+
+  globe
+    .arcsData(arcs)
+    .arcStartLat('startLat')
+    .arcStartLng('startLng')
+    .arcEndLat('endLat')
+    .arcEndLng('endLng')
+    .arcColor('color')
+    .arcAltitude(0.15)
+    .arcStroke(0.45)
+    .arcDashLength(0.7)
+    .arcDashGap(0.15)
+    .arcDashAnimateTime(1300);
+}
+
+function renderTripList() {
+  if (!tripStopsEl) return;
+  tripStopsEl.innerHTML = '';
+
+  tripPlan.forEach((city, idx) => {
+    const li = document.createElement('li');
+    li.className = 'trip-stop';
+    li.dataset.key = makeCityKey(city);
+    li.innerHTML = `
+      <span class="trip-index">${idx + 1}</span>
+      <div class="trip-main">
+        <span class="city">${city.name}</span>
+        <span class="country">${city.country}</span>
+      </div>
+      <button class="trip-remove" type="button" title="Remove">×</button>
+    `;
+    tripStopsEl.appendChild(li);
+  });
+}
+
+function recomputeTripUIAndArcs() {
+  if (!tripTrayEl) return;
+
+  if (tripPlan.length === 0) {
+    tripTrayEl.classList.remove('open');
+    if (tripStopsEl) tripStopsEl.innerHTML = '';
+    globe.arcsData([]);
+    recomputeTripStats();
+    return;
+  }
+
+  renderTripList();
+  recomputeTripStats();
+  recomputeTripArcs();
+  tripTrayEl.classList.add('open');
+}
+
+// Trip tray interactions
+if (tripClearBtn) {
+  tripClearBtn.addEventListener('click', () => {
+    tripPlan.length = 0;
+    recomputeTripUIAndArcs();
+  });
+}
+
+if (tripStopsEl) {
+  tripStopsEl.addEventListener('click', ev => {
+    const li = ev.target.closest('li.trip-stop');
+    if (!li) return;
+    const key = li.dataset.key;
+    const idx = tripPlan.findIndex(c => makeCityKey(c) === key);
+    if (idx === -1) return;
+
+    const city = tripPlan[idx];
+
+    // remove button
+    if (ev.target.closest('.trip-remove')) {
+      tripPlan.splice(idx, 1);
+      recomputeTripUIAndArcs();
+      return;
+    }
+
+    // click pill itself → fly to city + open panel
+    const mesh = findCityMesh(city);
+    if (mesh) startFlyToCityMesh(mesh);
+    openPanel(city);
+  });
+}
+
 /* ---------- smooth fly-to camera animation ---------- */
 
 let flyState = null;
@@ -832,7 +1252,6 @@ function updateFly() {
 
 /* ---------- search helpers ---------- */
 
-let allCities = [];
 let searchIndex = [];
 
 function buildSearchIndex(cities) {
@@ -933,12 +1352,13 @@ function setFromEvent(ev) {
   raycaster.setFromCamera(ndc, camera);
 }
 
-// city click → open panel + smooth fly-to
+// city click → open panel + smooth fly-to (NO trip toggle)
 renderer.domElement.addEventListener('click', ev => {
   setFromEvent(ev);
   const hit = raycaster.intersectObjects(clickTargets, true)[0];
   const city = hit?.object?.userData?.city;
   if (city) {
+    // Only fly + open panel. Trip plan is controlled by the panel button.
     startFlyToCity(city);
   }
 });
@@ -1000,6 +1420,12 @@ renderer.domElement.addEventListener('mouseleave', () => {
     } else {
       setTimeout(preloadCityImages, 0);
     }
+
+    // initialise trip tray message
+    recomputeTripUIAndArcs();
+
+    // initial favorites bar from localStorage
+    renderFavoriteBar();
 
     function tick() {
       requestAnimationFrame(tick);

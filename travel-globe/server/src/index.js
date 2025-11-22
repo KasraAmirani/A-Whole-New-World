@@ -12,6 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 8787;
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_KEY;
+// NEW: OpenWeather API key (optional – only for weather)
+const OPENWEATHER_KEY = process.env.OPENWEATHER_KEY;
 
 app.use(helmet());
 app.use(cors({ origin: ORIGIN }));
@@ -27,14 +29,15 @@ app.get('/', (_req, res) => {
       <meta charset="utf-8"/>
       <title>Travel Globe API</title>
       <style>
-        body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px;line-height:1.45;background:#020617;color:#e5e7eb}
+        body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-...;padding:24px;line-height:1.45;background:#020617;color:#e5e7eb}
         a{color:#38bdf8;text-decoration:none}
         code{background:#020617;padding:2px 6px;border-radius:4px;border:1px solid #1f2937}
       </style>
     </head>
     <body>
       <h1>Travel Globe API</h1>
-      <p>Server is running on <code>http://localhost:${PORT}</code></p>
+      <p>Backend for the Travel Globe prototype.</p>
+      <p>Try:</p>
       <ul>
         <li><a href="/api/health">/api/health</a></li>
         <li><a href="/api/cities">/api/cities</a></li>
@@ -58,7 +61,7 @@ const cities = [
     lng: -6.2603,
     pop: '~1.2M',
     summary:
-      'A compact, walkable capital mixing Georgian streets, pub culture and easy day trips to the sea and hills.',
+      'Compact, social and easy to walk, with a mix of history, pubs and quick escapes to the sea or hills.',
     tags: ['historical', 'food', 'nightlife', 'nature'],
     experiences: {
       historical: [
@@ -123,50 +126,50 @@ const cities = [
     experiences: {
       historical: [
         {
-          title: 'Acropolis & Parthenon at opening time',
+          title: 'Acropolis & Parthenon at golden hour',
           detail:
-            'Go at opening to avoid the biggest crowds and heat; walk down via the Ancient Agora and Plaka.'
+            'Climb up in the late afternoon for cooler temperatures and sunset light over the city and sea.'
         },
         {
-          title: 'Acropolis Museum',
+          title: 'Ancient Agora & Roman Agora',
           detail:
-            'Pair it with your Acropolis visit – calm, well-curated and great to escape the midday sun.'
+            'Walk the ruins where everyday life happened, not just the postcard sites.'
         }
       ],
       food: [
         {
-          title: 'Tavernas in Plaka & Psiri',
+          title: 'Tavernas in Plaka & Psyrri',
           detail:
-            'Share lots of small plates: grilled octopus, fava, salads and local wine. Eat late, like locals.'
+            'Share meze, grilled meats and carafes of wine or ouzo while people-watching in the narrow streets.'
         },
         {
-          title: 'Central Market exploration',
+          title: 'Central Market (Varvakios)',
           detail:
-            'Browse spice shops and small bakeries around the market for sweet and savory snacks.'
+            'See where locals actually shop, then find a small place nearby for lunch.'
         }
       ],
       nightlife: [
         {
-          title: 'Rooftop bars with Acropolis view',
+          title: 'Rooftop bars with Acropolis views',
           detail:
-            'Find a terrace near Monastiraki for golden-hour drinks and blue-hour city lights.'
+            'End the day with a drink overlooking the lit-up Parthenon.'
         },
         {
-          title: 'Gazi district',
+          title: 'Gazi & Exarchia bars',
           detail:
-            'Nightlife area with bars and clubs; good if you want a louder, later night out.'
+            'Explore the different nightlife vibes between industrial Gazi and more alternative Exarchia.'
         }
       ],
       nature: [
         {
-          title: 'Mount Lycabettus',
+          title: 'Lycabettus Hill at sunset',
           detail:
-            'Hike or take the funicular up for sunset; stay to watch the city lights switch on below.'
+            'Short hike or funicular ride for 360° views over Athens and the Saronic Gulf.'
         },
         {
-          title: 'Coastal tram to the sea',
+          title: 'Day trip to Sounion',
           detail:
-            'Ride out toward the Athenian Riviera and walk a stretch of the coast for a breeze and a swim in season.'
+            'Visit the Temple of Poseidon and watch the sun drop into the Aegean.'
         }
       ]
     }
@@ -178,55 +181,55 @@ const cities = [
     lng: 12.5683,
     pop: '~0.8M',
     summary:
-      'A bike-first, waterfront city with design museums, cozy cafés and relaxed parks and canals.',
+      'Laid-back, design-forward city of bikes, harbors, and long cosy evenings.',
     tags: ['historical', 'food', 'nightlife', 'nature'],
     experiences: {
       historical: [
         {
           title: 'Rosenborg Castle & King’s Garden',
           detail:
-            'Stroll through the gardens to the castle, then explore the crown jewels and interiors.'
+            'Wander the garden first, then see the crown jewels and royal interiors.'
         },
         {
-          title: 'Christiansborg & old harbor',
+          title: 'Christianshavn canals',
           detail:
-            'Combine a visit to Christiansborg Palace with a walk along the older harborside streets.'
+            'Explore old warehouses, churches and the quieter side streets by the water.'
         }
       ],
       food: [
         {
           title: 'Smørrebrød lunch',
           detail:
-            'Find a traditional spot for open-faced sandwiches piled with fish, meat or veggie toppings.'
+            'Try open-faced sandwiches in a classic lunch restaurant or modern café.'
         },
         {
-          title: 'Coffee & pastries',
+          title: 'Street food by the water',
           detail:
-            'Cafés double as hangout spots; try cardamom buns or cinnamon rolls between explorations.'
+            'Head to Reffen or similar markets for casual bites with harbor views.'
         }
       ],
       nightlife: [
         {
-          title: 'Canal-side bars in Nyhavn / Christianshavn',
+          title: 'Nyhavn & inner city bars',
           detail:
-            'Sit by the water in warmer months; be ready for high prices but very relaxed vibes.'
+            'Have an early-evening drink by the colored houses, then move deeper into the city.'
         },
         {
-          title: 'Craft beer & wine bars',
+          title: 'Meatpacking District (Kødbyen)',
           detail:
-            'Look for small natural-wine bars or microbreweries dotted across Nørrebro and Vesterbro.'
+            'Packed with bars and restaurants in old industrial buildings.'
         }
       ],
       nature: [
         {
-          title: 'Bike tour of lakes & parks',
+          title: 'Biking along the harbor',
           detail:
-            'Follow the city lakes, then loop through parks like Fælledparken for a green circuit on two wheels.'
+            'Rent a bike and follow the harbor promenades past swimming spots and modern architecture.'
         },
         {
-          title: 'Harbour baths',
+          title: 'Day trip to Dyrehaven',
           detail:
-            'In summer, swim in designated harbor baths for a quick, very local reset.'
+            'Forest and deer park just north of the city, ideal for a relaxed half-day outside.'
         }
       ]
     }
@@ -234,60 +237,66 @@ const cities = [
   {
     country: 'Croatia',
     name: 'Zagreb',
-    lat: 45.8150,
+    lat: 45.815,
     lng: 15.9819,
     pop: '~0.8M',
     summary:
-      'Central European feel with café culture, small museums and easy escapes to hills and lakes nearby.',
+      'Comfortable, café-heavy capital with Austro-Hungarian architecture and easy day trips to nature.',
     tags: ['historical', 'food', 'nightlife', 'nature'],
     experiences: {
       historical: [
         {
-          title: 'Upper Town walk',
+          title: 'Upper Town (Gornji Grad)',
           detail:
-            'Ride the funicular or walk up to the old town for St. Mark’s Church, narrow streets and city views.'
+            'Ride the funicular, see St. Mark’s Church and wander the old streets and viewpoints.'
         },
         {
-          title: 'Museum stop (e.g. Broken Relationships)',
+          title: 'Mirogoj Cemetery',
           detail:
-            'Mix in at least one small museum for a deeper, more personal sense of the city.'
+            'Peaceful arcades and sculptures set in greenery just outside the center.'
         }
       ],
       food: [
         {
-          title: 'Dolac Market & nearby eateries',
+          title: 'Štrukli & local comfort food',
           detail:
-            'Browse the produce market in the morning, then grab lunch at one of the nearby restaurants.'
+            'Try baked štrukli and other comfort dishes in traditional restaurants.'
         },
         {
-          title: 'Café culture along Ilica and Tkalčićeva',
+          title: 'Dolac Market food stalls',
           detail:
-            'Sit outside with coffee or a drink and people-watch; this is a big part of local daily life.'
+            'Combine a morning market visit with snacks and coffee at nearby cafés.'
         }
       ],
       nightlife: [
         {
-          title: 'Bars in the Lower Town',
+          title: 'Tkalčićeva Street',
           detail:
-            'Explore side streets for smaller bars and live music; many spots feel more like living rooms than clubs.'
+            'Bar-lined pedestrian street that stays lively late into the evening.'
+        },
+        {
+          title: 'Hidden courtyards in summer',
+          detail:
+            'Look for pop-up bars and events in inner courtyards during warm months.'
         }
       ],
       nature: [
         {
-          title: 'Maksimir Park',
+          title: 'Jarun Lake',
           detail:
-            'Large park with lakes and walking paths; great for a slow morning or evening walk.'
+            'Evening walks or bike rides around the lake, with bars that get busy in summer.'
         },
         {
           title: 'Day trip to Medvednica',
           detail:
-            'Head into the nearby hills for hiking and views back over the city on clear days.'
+            'Hiking above the city with views back over Zagreb.'
         }
       ]
     }
   }
 ];
 
+// --- cities endpoint (used by the globe frontend) ---
 app.get('/api/cities', (_req, res) => res.json(cities));
 
 // --- server-side Google Geocoding proxy (still here if you want it later) ---
@@ -309,6 +318,46 @@ app.get('/api/geocode', async (req, res) => {
     }
     const { lat, lng } = data.results[0].geometry.location;
     res.json({ lat, lng, formatted: data.results[0].formatted_address });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// NEW: OpenWeather current weather proxy – used by the panel in the frontend.
+// If OPENWEATHER_KEY is missing, this will just return a 500 but the globe still works.
+app.get('/api/weather', async (req, res) => {
+  try {
+    if (!OPENWEATHER_KEY) {
+      return res.status(500).json({ error: 'OPENWEATHER_KEY missing on server' });
+    }
+
+    const lat = String(req.query.lat ?? '').trim();
+    const lng = String(req.query.lng ?? '').trim();
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'lat and lng are required' });
+    }
+
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(
+      lat
+    )}&lon=${encodeURIComponent(lng)}&units=metric&appid=${OPENWEATHER_KEY}`;
+
+    const r = await fetch(url);
+    if (!r.ok) {
+      console.error('Weather upstream error', r.status);
+      return res.status(502).json({ error: 'Weather lookup failed' });
+    }
+
+    const data = await r.json();
+
+    res.json({
+      location: data.name ?? null,
+      tempC: data.main?.temp ?? null,
+      feelsLikeC: data.main?.feels_like ?? null,
+      description: data.weather?.[0]?.description ?? null,
+      icon: data.weather?.[0]?.icon ?? null,
+      source: 'openweathermap'
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Server error' });

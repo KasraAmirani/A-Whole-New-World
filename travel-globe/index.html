@@ -268,6 +268,154 @@
     }
     #search-results { scrollbar-width: thin; }
 
+    /* ---------- FAVORITES BAR ---------- */
+
+    #favorites-bar {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      font-size: 11px;
+      color: #e5e7eb;
+    }
+
+    #favorites-bar .fav-chip {
+      border-radius: 999px;
+      padding: 3px 8px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(194, 203, 225, 0.9);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #favorites-bar .fav-chip:hover {
+      background: rgba(30,64,175,0.9);
+    }
+
+    /* ---------- TRIP PLAN TRAY (bottom) ---------- */
+
+    #trip-tray {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      max-width: min(720px, 94vw);
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.85);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Helvetica, Arial, sans-serif;
+      color: #e6e9ef;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      z-index: 24;
+      backdrop-filter: blur(16px);
+    }
+
+    #trip-tray.open {
+      display: flex;
+    }
+
+    #trip-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 150px;
+    }
+
+    .trip-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.8;
+    }
+
+    #trip-stats {
+      font-size: 12px;
+      opacity: 0.95;
+      white-space: nowrap;
+    }
+
+    #trip-stops {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .trip-stop {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px 3px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      font-size: 12px;
+      cursor: pointer;
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .trip-index {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    .trip-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .trip-main .city {
+      font-weight: 500;
+    }
+
+    .trip-main .country {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    .trip-remove {
+      border: 0;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 14px;
+      padding: 0 0 0 3px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .trip-remove:hover {
+      color: #fca5a5;
+    }
+
+    #trip-clear {
+      border: 0;
+      background: transparent;
+      color: #fca5a5;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 3px 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #trip-clear:hover {
+      color: #fecaca;
+    }
+
     body { display: block; place-items: initial; min-height: 100vh; }
 
     /* Small screens: let panel be almost full width */
@@ -281,6 +429,15 @@
 
       #search-input {
         width: min(260px, 70vw);
+      }
+
+      #trip-tray {
+        bottom: 10px;
+        padding-inline: 8px;
+      }
+
+      #trip-summary {
+        min-width: 130px;
       }
     }
   </style>
@@ -301,6 +458,18 @@
           autocomplete="off"
         />
         <ul id="search-results"></ul>
+        <!-- Favorites bar -->
+        <div id="favorites-bar"></div>
+      </div>
+
+      <!-- Trip Plan tray -->
+      <div id="trip-tray">
+        <div id="trip-summary">
+          <div class="trip-label">Trip plan</div>
+          <div id="trip-stats">Click a city to start a trip.</div>
+        </div>
+        <ol id="trip-stops"></ol>
+        <button id="trip-clear" type="button" title="Clear trip">Clear</button>
       </div>
     </div>
 
