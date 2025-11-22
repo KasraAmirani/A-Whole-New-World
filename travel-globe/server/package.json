@@ -1,0 +1,23 @@
+{
+  "name": "travel-globe-api",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend for Travel Globe",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext js --exec node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "node-fetch": "3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
