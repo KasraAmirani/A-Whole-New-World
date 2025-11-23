@@ -3,8 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Globe from 'three-globe';
 import { feature } from 'topojson-client';
-// NEW: also import loadWeather (existing loadCities unchanged)
-import { loadCities, loadWeather } from './api.js'; // calls /api/cities + /api/weather
+import { loadCities, loadWeather } from './api.js'; // /api/cities + /api/weather
 
 const appEl = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -133,7 +132,28 @@ const CITY_MEDIA = {
   }
 };
 
-// current active filter for the open panel
+// Simple country overview text for the new country panel.
+// (Later this can be replaced by live Wikimedia/Wikipedia summaries.)
+const COUNTRY_INFO = {
+  Ireland: {
+    summary:
+      'Ireland combines compact cities, coastal villages and quick access to green hills and sea. Dublin is the main hub for first-time trips.'
+  },
+  Greece: {
+    summary:
+      'Greece blends ancient history with island life and long evenings outside. Athens is the gateway to ruins, food and the Aegean.'
+  },
+  Denmark: {
+    summary:
+      'Denmark brings together calm design, bike culture and harborside life. Copenhagen is the natural first stop for exploring.'
+  },
+  Croatia: {
+    summary:
+      'Croatia mixes Central European architecture with Adriatic coastlines. Zagreb is a comfortable base before heading out to nature or the sea.'
+  }
+};
+
+// current active filter for the open *city* panel
 let currentTag = 'all';
 
 /* ---------- favorites (localStorage) ---------- */
@@ -172,7 +192,7 @@ function isFavorite(city) {
 
 /* ---------- favorites bar under search ---------- */
 
-let allCities = []; // declared here so renderFavoriteBar can see it
+let allCities = []; // declared here so renderFavoriteBar & country panel can see it
 
 function renderFavoriteBar() {
   if (!favBarEl || !allCities.length) return;
@@ -321,6 +341,9 @@ const cityMarkers = new Map();     // key -> THREE.Sprite
 const NORMAL_COLOR = '#ffd977';    // yellow
 const FAV_COLOR    = '#eb2020ff';  // red
 
+// base scale for city markers (we animate up to this size)
+const CITY_MARKER_BASE_SCALE = GLOBE_R * 0.012;
+
 function makeRingTexture(colorHex) {
   const size = 128;
   const canvas = document.createElement('canvas');
@@ -376,9 +399,13 @@ function createCityMarkerSprite(city) {
     depthWrite: true
   });
   const sprite = new THREE.Sprite(mat);
-  const scale = GLOBE_R * 0.012; // size of the dot marker
-  sprite.scale.set(scale, scale, 1);
   sprite.userData.city = city;
+  sprite.userData.baseScale = CITY_MARKER_BASE_SCALE;
+
+  // Start hidden: scale 0 + visible = false; they will pop in when country is selected
+  sprite.scale.set(0, 0, 1);
+  sprite.visible = false;
+
   return sprite;
 }
 
@@ -391,7 +418,7 @@ function updateCityMarker(city) {
   sprite.material.needsUpdate = true;
 }
 
-/* ---------- inject extra CSS for panel text, tags & photos (once) ---------- */
+/* ---------- inject extra CSS for panel text, tags, photos & country view ---------- */
 
 function ensurePanelExtraStyles() {
   if (document.getElementById('panel-extra-styles')) return;
@@ -479,7 +506,7 @@ function ensurePanelExtraStyles() {
       border-color: #facc15;
     }
 
-    /* trip planner toggle button in panel header */
+    /* trip planner toggle button in panel header (city view) */
     .trip-btn {
       border: 0;
       padding: 6px 10px;
@@ -524,7 +551,7 @@ function ensurePanelExtraStyles() {
       filter: brightness(1.2);
     }
 
-    /* inline styles for the weather block inside the panel */
+    /* inline styles for the weather block inside the city panel */
     .weather-block {
       margin: 0.5rem 0 0.2rem;
       padding: 0.45rem 0.6rem;
@@ -573,6 +600,38 @@ function ensurePanelExtraStyles() {
     .weather-meta {
       font-size: 11px;
       opacity: 0.8;
+    }
+
+    /* Country view: list of cities inside a country */
+    .country-city-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0.4rem 0 0.2rem;
+      padding: 0;
+      list-style: none;
+    }
+    .country-city-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(15,23,42,0.95);
+      color: #e5e7eb;
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .country-city-btn:hover {
+      background: rgba(37, 99, 235, 0.9);
+      border-color: rgba(191, 219, 254, 0.95);
+    }
+    .country-city-badge {
+      font-size: 10px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
   `;
   document.head.appendChild(style);
@@ -722,9 +781,9 @@ async function fetchAndRenderWeather(city) {
   }
 }
 
-/* ---------- panel ---------- */
+/* ---------- CITY PANEL (unchanged behaviour, just renamed mentally) ---------- */
 
-function openPanel(city) {
+function openCityPanel(city) {
   ensurePanelExtraStyles();
   currentTag = 'all'; // reset to all whenever you open a city
 
@@ -854,6 +913,83 @@ function openPanel(city) {
   renderCityContent(city);
 }
 
+/* ---------- COUNTRY PANEL (NEW) ---------- */
+
+function openCountryPanel(countryFeature) {
+  ensurePanelExtraStyles();
+  currentTag = 'all';
+
+  const countryName = countryFeature.properties?.name || 'Country';
+  const info = COUNTRY_INFO[countryName] || {
+    summary: `${countryName} is one of the prototype countries in this globe.`
+  };
+
+  const citiesInCountry = allCities.filter(c => c.country === countryName);
+
+  panelInnerEl.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">${countryName}</h2>
+        <p class="muted">Prototype country in this Travel Globe.</p>
+      </div>
+      <div class="panel-header-actions">
+        <button class="close-btn" id="close-btn" type="button">Close</button>
+      </div>
+    </div>
+    <div class="panel-text">
+      <p>${info.summary}</p>
+
+      ${
+        citiesInCountry.length
+          ? `
+            <h3 class="panel-section-title">Cities in ${countryName}</h3>
+            <ul class="country-city-list">
+              ${citiesInCountry.map(c => `
+                <li>
+                  <button
+                    class="country-city-btn"
+                    data-city="${c.name}"
+                    data-country="${c.country}"
+                    type="button"
+                  >
+                    <span>${c.name}</span>
+                    <span class="country-city-badge">Open city</span>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+          `
+          : `<p>No cities configured for this country yet.</p>`
+      }
+    </div>
+  `;
+
+  panelEl.classList.add('open');
+
+  document
+    .getElementById('close-btn')
+    ?.addEventListener('click', () => panelEl.classList.remove('open'), {
+      once: true
+    });
+
+  // Wire up "Open city" buttons
+  const listEl = panelInnerEl.querySelector('.country-city-list');
+  if (listEl) {
+    listEl.addEventListener('click', ev => {
+      const btn = ev.target.closest('.country-city-btn');
+      if (!btn) return;
+      const name = btn.getAttribute('data-city');
+      const country = btn.getAttribute('data-country');
+      const city = allCities.find(
+        c => c.name === name && c.country === country
+      );
+      if (city) {
+        startFlyToCity(city);
+      }
+    });
+  }
+}
+
 /* ---------- sizing ---------- */
 
 function syncSize() {
@@ -867,26 +1003,31 @@ new ResizeObserver(syncSize).observe(appEl);
 window.addEventListener('resize', syncSize);
 syncSize();
 
-/* ---------- COUNTRY LAYER: 4 countries, outline + label ON HOVER ---------- */
+/* ---------- COUNTRY LAYER: 4 countries, outline + label ON HOVER/ACTIVE ---------- */
 
 const KEEP_IDS = new Set([372, 300, 208, 191]); // Ireland, Greece, Denmark, Croatia
 
 let countryFeatures = [];
 let hoverCountry = null;
+let activeCountry = null; // NEW: the country we have "opened"
 
 function updateCountryStyles() {
   if (!countryFeatures.length) return;
   globe
-    .polygonAltitude(d => (d === hoverCountry ? 0.02 : 0.01))
-    .polygonCapColor(d =>
-      d === hoverCountry ? 'rgba(90,140,230,0.24)' : 'rgba(80,120,200,0.18)'
+    .polygonAltitude(d =>
+      d === hoverCountry || d === activeCountry ? 0.02 : 0.01
     )
+    .polygonCapColor(d => {
+      if (d === activeCountry) return 'rgba(120,180,255,0.32)';
+      return d === hoverCountry ? 'rgba(90,140,230,0.24)' : 'rgba(80,120,200,0.18)';
+    })
     .polygonSideColor(() => 'rgba(100,150,255,0.22)')
-    .polygonStrokeColor(d =>
-      d === hoverCountry
+    .polygonStrokeColor(d => {
+      if (d === activeCountry) return 'rgba(255,255,255,0.95)';
+      return d === hoverCountry
         ? 'rgba(220,235,255,0.9)'
-        : 'rgba(180,200,255,0.45)'
-    );
+        : 'rgba(180,200,255,0.45)';
+    });
 }
 
 function setupCountries(geoFeatures) {
@@ -996,6 +1137,9 @@ function setupClickTargets(cities) {
       group.userData.city = d;
       return group;
     });
+
+  // soft country-first: hide all markers until a country is selected
+  updateCityMarkersVisibility();
 }
 
 /* ---------- world → lat/lng ---------- */
@@ -1192,10 +1336,10 @@ if (tripStopsEl) {
       return;
     }
 
-    // click pill itself → fly to city + open panel
+    // click pill itself → fly to city + open city panel
     const mesh = findCityMesh(city);
     if (mesh) startFlyToCityMesh(mesh);
-    openPanel(city);
+    openCityPanel(city);
   });
 }
 
@@ -1207,6 +1351,14 @@ function easeInOutCubic(t) {
   return t < 0.5
     ? 4 * t * t * t
     : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// NEW: a "back" easing that overshoots a bit before settling
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }
 
 function startFlyToCityMesh(mesh) {
@@ -1230,6 +1382,18 @@ function startFlyToCityMesh(mesh) {
   };
 
   controls.enabled = false;
+}
+
+// NEW: fly to a country center (we approximate using that country’s first city)
+function startFlyToCountry(countryFeature) {
+  const countryName = countryFeature.properties?.name;
+  const city = allCities.find(c => c.country === countryName);
+  if (!city) return;
+
+  const mesh = findCityMesh(city);
+  if (mesh) {
+    startFlyToCityMesh(mesh);
+  }
 }
 
 function updateFly() {
@@ -1270,13 +1434,34 @@ function findCityMesh(city) {
   );
 }
 
+// Helper: find country feature for a given city
+function findCountryFeatureForCity(city) {
+  if (!countryFeatures.length) return null;
+  return countryFeatures.find(
+    f => f.properties?.name === city.country
+  ) || null;
+}
+
+// Helper: set active country based on a city (used for search/favs)
+function setActiveCountryForCity(city) {
+  const feat = findCountryFeatureForCity(city);
+  if (!feat) return;
+  activeCountry = feat;
+  updateCountryStyles();
+  revealCountryCitiesWithAnimation(feat);
+}
+
 function startFlyToCity(city) {
+  // soft country-first: when we go straight to a city (search/fav),
+  // set its country active and reveal its markers.
+  setActiveCountryForCity(city);
+
   const mesh = findCityMesh(city);
   if (mesh) {
-    openPanel(city);
+    openCityPanel(city);
     startFlyToCityMesh(mesh);
   } else {
-    openPanel(city);
+    openCityPanel(city);
   }
 }
 
@@ -1340,6 +1525,123 @@ function wireSearch(cities) {
   });
 }
 
+/* ---------- CITY MARKER VISIBILITY + POP-IN ANIMATION ---------- */
+
+// Map of cityKey -> { start: number, duration: number }
+const cityAppearAnimations = new Map();
+
+function startCityMarkerAppear(city, delayMs = 0) {
+  const key = makeCityKey(city);
+  const sprite = cityMarkers.get(key);
+  if (!sprite) return;
+  const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
+
+  sprite.visible = true;
+  // start tiny; we'll grow it
+  sprite.scale.set(0, 0, 1);
+
+  cityAppearAnimations.set(key, {
+    start: performance.now(),
+    duration: 15000,
+    baseScale,
+    delay: delayMs
+  });
+}
+
+
+// Hide markers for all other countries; pop in markers for the selected country
+function revealCountryCitiesWithAnimation(countryFeature) {
+  const countryName = countryFeature.properties?.name;
+  if (!countryName) return;
+
+  const citiesInCountry = allCities.filter(c => c.country === countryName);
+
+  // Hide all markers & stop animations for cities not in this country
+  for (const [key, sprite] of cityMarkers.entries()) {
+    const city = sprite.userData.city;
+    const inCountry = city && city.country === countryName;
+    if (!inCountry) {
+      sprite.visible = false;
+      cityAppearAnimations.delete(key);
+    }
+  }
+
+  // For markers in this country:
+  citiesInCountry.forEach((city, idx) => {
+    const key = makeCityKey(city);
+    const sprite = cityMarkers.get(key);
+    if (!sprite) return;
+
+    const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
+
+    // 🔑 If the marker is already visible, don't restart the pop-in animation
+    if (sprite.visible) {
+      // Just ensure it's at its final scale and not in the animation map
+      sprite.scale.set(baseScale, baseScale, 1);
+      cityAppearAnimations.delete(key);
+      return;
+    }
+
+    // Otherwise, this is the first time showing it → animate with a staggered delay
+    const baseDelay = 80;              // ms between dots
+    const jitter = Math.random() * 60; // small randomness so it's not too rigid
+    const delayMs = idx * baseDelay + jitter;
+    startCityMarkerAppear(city, delayMs);
+  });
+}
+
+
+// When we change activeCountry, call this if we just want visibility update
+function updateCityMarkersVisibility() {
+  if (!activeCountry) {
+    // No active country → nothing visible (soft country-first)
+    for (const sprite of cityMarkers.values()) {
+      sprite.visible = false;
+    }
+    return;
+  }
+  revealCountryCitiesWithAnimation(activeCountry);
+}
+
+function updateCityAppearAnimations() {
+  if (!cityAppearAnimations.size) return;
+  const now = performance.now();
+
+  for (const [key, anim] of cityAppearAnimations.entries()) {
+    const sprite = cityMarkers.get(key);
+    if (!sprite) {
+      cityAppearAnimations.delete(key);
+      continue;
+    }
+
+    const delay = anim.delay || 0;
+    const elapsed = now - anim.start - delay;
+
+    // Not started yet → keep it invisible/tiny
+    if (elapsed <= 0) {
+      sprite.scale.set(0, 0, 1);
+      continue;
+    }
+
+    const tRaw = elapsed / anim.duration;
+    const t = Math.min(1, Math.max(0, tRaw));
+
+    // Use our "back" easing for a little overshoot
+    const eased = easeOutBack(t);
+    // Keep a minimum size so it doesn't feel too tiny at start
+    const factor = 0.2 + 0.8 * eased; // 0.2 → ~1.16 → 1.0
+
+    const s = anim.baseScale * factor;
+    sprite.scale.set(s, s, 1);
+
+    if (t >= 1) {
+      cityAppearAnimations.delete(key);
+      sprite.scale.set(anim.baseScale, anim.baseScale, 1);
+    }
+  }
+}
+
+
 /* ---------- picking ---------- */
 
 const raycaster = new THREE.Raycaster();
@@ -1352,18 +1654,38 @@ function setFromEvent(ev) {
   raycaster.setFromCamera(ndc, camera);
 }
 
-// city click → open panel + smooth fly-to (NO trip toggle)
+// Handle click: prefer city if we clicked a marker; otherwise treat as country click
 renderer.domElement.addEventListener('click', ev => {
   setFromEvent(ev);
-  const hit = raycaster.intersectObjects(clickTargets, true)[0];
-  const city = hit?.object?.userData?.city;
+
+  // 1) Check if we hit a city click target
+  const hitCity = raycaster.intersectObjects(clickTargets, true)[0];
+  const city = hitCity?.object?.userData?.city;
   if (city) {
-    // Only fly + open panel. Trip plan is controlled by the panel button.
+    // Soft country-first: clicking a city dot is allowed, but
+    // sets its country active & reveals markers.
+    setActiveCountryForCity(city);
     startFlyToCity(city);
+    return;
   }
+
+  // 2) Otherwise, see if we clicked on the globe sphere → country
+  const hitSphere = raycaster.intersectObject(pickerSphere, true)[0];
+  if (!hitSphere) return;
+
+  const { lat, lng } = worldToLatLng(hitSphere.point);
+  const country = pickCountryFromLatLng(lat, lng);
+  if (!country) return;
+
+  // Set active country, fly to it, show its panel and reveal markers
+  activeCountry = country;
+  updateCountryStyles();
+  revealCountryCitiesWithAnimation(country);
+  startFlyToCountry(country);
+  openCountryPanel(country);
 });
 
-// city hover cursor + country hover label
+// pointer move: city hover cursor + country hover label
 renderer.domElement.addEventListener('pointermove', ev => {
   setFromEvent(ev);
 
@@ -1411,7 +1733,7 @@ renderer.domElement.addEventListener('mouseleave', () => {
     const world = feature(topo, topo.objects.countries);
 
     setupCountries(world.features); // only 4 countries, outlined
-    setupClickTargets(cities);      // markers + click meshes
+    setupClickTargets(cities);      // markers + click meshes (initially hidden)
     wireSearch(cities);             // search
 
     // preload city images in the background
@@ -1430,6 +1752,7 @@ renderer.domElement.addEventListener('mouseleave', () => {
     function tick() {
       requestAnimationFrame(tick);
       updateFly();
+      updateCityAppearAnimations(); // NEW: animate city markers popping in
       controls.update();
       renderer.render(scene, camera);
     }
