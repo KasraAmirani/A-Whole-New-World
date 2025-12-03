@@ -26,6 +26,105 @@ const tripStopsEl = document.getElementById('trip-stops');
 const tripStatsEl = document.getElementById('trip-stats');
 const tripClearBtn = document.getElementById('trip-clear');
 
+/* ---------- global overlays (instructions + loading) ---------- */
+
+function ensureGlobalOverlays() {
+  if (document.getElementById('global-overlay-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'global-overlay-styles';
+  style.textContent = `
+    #globe-instructions {
+      position: fixed;
+      left: 16px;
+      bottom: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 40;
+      backdrop-filter: blur(10px);
+      opacity: 0.9;
+      white-space: nowrap;
+    }
+
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(2,6,23,0.99));
+      z-index: 50;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #loading-overlay .loading-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Helvetica, Arial, sans-serif;
+      font-size: 20px;
+      color: #e5e7eb;
+    }
+    #loading-overlay .loading-bar {
+      width: 180px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(15,23,42,1);
+      overflow: hidden;
+      border: 1px solid rgba(30,64,175,0.9);
+    }
+    #loading-overlay .loading-bar-fill {
+      width: 60%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #22c55e, #f97316);
+      animation: loading-pulse 1.2s infinite ease-in-out;
+      transform-origin: left;
+    }
+    @keyframes loading-pulse {
+      0% { transform: translateX(-60%); }
+      50% { transform: translateX(10%); }
+      100% { transform: translateX(100%); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  const loading = document.createElement('div');
+  loading.id = 'loading-overlay';
+  loading.innerHTML = `
+    <div class="loading-inner">
+      <div>Loading…</div>
+      <div class="loading-bar">
+        <div class="loading-bar-fill"></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(loading);
+
+  const instr = document.createElement('div');
+  instr.id = 'globe-instructions';
+  instr.textContent = 'Drag to rotate · Scroll to zoom';
+  document.body.appendChild(instr);
+}
+
+ensureGlobalOverlays();
+const loadingOverlayEl = document.getElementById('loading-overlay');
+
 /* ---------- TAGS + CITY MEDIA ---------- */
 
 const TAG_DEFS = [
@@ -41,6 +140,7 @@ const TAG_DEFS = [
  * Photos must match actual files in /public/images/cities/.
  */
 const CITY_MEDIA = {
+  // -------- IRELAND --------
   Dublin: {
     experiences: [
       {
@@ -64,6 +164,38 @@ const CITY_MEDIA = {
       { url: '/images/cities/dublin-2.jpg', tags: ['nightlife', 'food'] }
     ]
   },
+  Cork: {
+    experiences: [
+      {
+        title: 'English Market',
+        tags: ['food'],
+        description: 'Covered market with local produce, snacks and an easy first taste of the city.'
+      },
+      {
+        title: 'Shandon bells',
+        tags: ['history'],
+        description: 'Climb the tower, ring the bells and get rooftop views over Cork.'
+      }
+    ],
+    photos: []
+  },
+  Galway: {
+    experiences: [
+      {
+        title: 'Latin Quarter walk',
+        tags: ['nightlife', 'history'],
+        description: 'Colourful streets, pubs and buskers between Eyre Square and the Spanish Arch.'
+      },
+      {
+        title: 'Seafood by the quay',
+        tags: ['food'],
+        description: 'Casual places for fish and oysters looking out to the water.'
+      }
+    ],
+    photos: []
+  },
+
+  // -------- GREECE --------
   Athens: {
     experiences: [
       {
@@ -86,6 +218,38 @@ const CITY_MEDIA = {
       { url: '/images/cities/athens-1.jpg', tags: ['history', 'nature'] }
     ]
   },
+  Thessaloniki: {
+    experiences: [
+      {
+        title: 'White Tower & waterfront',
+        tags: ['history', 'nature'],
+        description: 'Walk the promenade, visit the tower and watch the sunset over the bay.'
+      },
+      {
+        title: 'Ladadika evenings',
+        tags: ['food', 'nightlife'],
+        description: 'Tavernas and meze spots in converted warehouses near the port.'
+      }
+    ],
+    photos: []
+  },
+  Heraklion: {
+    experiences: [
+      {
+        title: 'Knossos Palace',
+        tags: ['history'],
+        description: 'Minoan ruins just outside the city – easy half-day trip.'
+      },
+      {
+        title: 'Cretan tavernas',
+        tags: ['food'],
+        description: 'Olive oil, herbs and simple local dishes in back-street spots.'
+      }
+    ],
+    photos: []
+  },
+
+  // -------- DENMARK --------
   Copenhagen: {
     experiences: [
       {
@@ -108,6 +272,38 @@ const CITY_MEDIA = {
       { url: '/images/cities/copenhagen-1.jpg', tags: ['history', 'nightlife'] }
     ]
   },
+  Aarhus: {
+    experiences: [
+      {
+        title: 'Den Gamle By',
+        tags: ['history'],
+        description: 'Open-air museum with recreated streets from different eras.'
+      },
+      {
+        title: 'Harbourfront',
+        tags: ['food', 'nature'],
+        description: 'Modern waterfront area with cafés, sea views and places to swim in summer.'
+      }
+    ],
+    photos: []
+  },
+  Odense: {
+    experiences: [
+      {
+        title: 'H. C. Andersen quarter',
+        tags: ['history'],
+        description: 'Museums and colourful old houses around the writer’s childhood streets.'
+      },
+      {
+        title: 'River path cafés',
+        tags: ['food', 'nature'],
+        description: 'Easy walks and bike rides with relaxed stops by the water.'
+      }
+    ],
+    photos: []
+  },
+
+  // -------- CROATIA --------
   Zagreb: {
     experiences: [
       {
@@ -129,11 +325,41 @@ const CITY_MEDIA = {
     photos: [
       { url: '/images/cities/zagreb-1.jpg', tags: ['history', 'food'] }
     ]
+  },
+  Split: {
+    experiences: [
+      {
+        title: 'Diocletian’s Palace',
+        tags: ['history'],
+        description: 'Roman palace now filled with shops, cafés and apartments.'
+      },
+      {
+        title: 'Riva promenade',
+        tags: ['food', 'nightlife'],
+        description: 'Palm-lined waterfront for slow walks, drinks and people-watching.'
+      }
+    ],
+    photos: []
+  },
+  Dubrovnik: {
+    experiences: [
+      {
+        title: 'City walls walk',
+        tags: ['history', 'nature'],
+        description: 'Loop around the fortifications for views of roofs, sea and cliffs.'
+      },
+      {
+        title: 'Lokrum Island',
+        tags: ['nature'],
+        description: 'Quick boat ride to a quieter island with paths and swimming spots.'
+      }
+    ],
+    photos: []
   }
 };
 
-// Simple country overview text for the new country panel.
-// (Later this can be replaced by live Wikimedia/Wikipedia summaries.)
+/* ---------- Simple country overview text ---------- */
+
 const COUNTRY_INFO = {
   Ireland: {
     summary:
@@ -277,6 +503,10 @@ controls.minDistance = 120;
 controls.maxDistance = 500;
 controls.enablePan = false;
 
+// store the “home” view for fly-back animation
+const INITIAL_CAMERA_POS = camera.position.clone();
+const INITIAL_CAMERA_TARGET = controls.target.clone();
+
 scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 const dir = new THREE.DirectionalLight(0xffffff, 0.6);
 dir.position.set(5, 3, 1);
@@ -312,11 +542,9 @@ addStarField();
 /* ---------- globe ---------- */
 
 const globe = new Globe()
-  .globeImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+  .globeImageUrl('/textures/8k_earth_daymap.jpg')
   .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-  .showAtmosphere(true)
-  .atmosphereColor('#88aaff')
-  .atmosphereAltitude(0.15);
+  .showAtmosphere(false); // we use our own shader-based atmosphere
 
 scene.add(globe);
 globe.rotateY(-Math.PI * 0.4);
@@ -326,12 +554,67 @@ const GLOBE_R = typeof globe.getGlobeRadius === 'function'
   : 100;
 const POINT_ALT = 0.025; // same altitude for click targets
 
+// ---------- Custom atmosphere shader ----------
+const atmosphereMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    glowColor: { value: new THREE.Color(0x60a5fa) } // tweak this colour if you like
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vNormal;
+    uniform vec3 glowColor;
+    void main() {
+      float intensity = pow(1.0 - abs(vNormal.z), 3.0);
+      gl_FragColor = vec4(glowColor * intensity, intensity);
+    }
+  `,
+  side: THREE.BackSide,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  depthWrite: false
+});
+
+const atmosphereMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(GLOBE_R * 1.06, 64, 64),
+  atmosphereMaterial
+);
+globe.add(atmosphereMesh);
+
 // invisible sphere used to get lat/lng under cursor
 const pickerSphere = new THREE.Mesh(
   new THREE.SphereGeometry(GLOBE_R, 64, 64),
   new THREE.MeshBasicMaterial({ visible: false })
 );
 globe.add(pickerSphere);
+
+/* ---------- idle auto-rotate ---------- */
+
+let lastInteractionTime = performance.now();
+const IDLE_TIMEOUT_MS = 5000; // 5 seconds
+const IDLE_ROT_SPEED = THREE.MathUtils.degToRad(5);
+let lastFrameTime = performance.now();
+
+function markUserInteraction() {
+  lastInteractionTime = performance.now();
+}
+
+['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach(evt =>
+  window.addEventListener(evt, markUserInteraction, { passive: true })
+);
+
+function updateAutoRotate(dtSec) {
+  const now = performance.now();
+  const idleFor = now - lastInteractionTime;
+  if (idleFor < IDLE_TIMEOUT_MS) return;
+  if (flyState) return; // don't auto-rotate during fly-to animation
+  globe.rotation.y += IDLE_ROT_SPEED * dtSec;
+}
 
 /* ---------- marker textures (ring + inner disc) ---------- */
 
@@ -352,25 +635,22 @@ function makeRingTexture(colorHex) {
   const cx = size / 2;
   const cy = size / 2;
 
-  const outerR = size * 0.48; // outer edge
-  const ringInnerR = size * 0.34; // inner edge of ring
-  const innerR = size * 0.22; // inner solid disc
+  const outerR = size * 0.48;
+  const ringInnerR = size * 0.34;
+  const innerR = size * 0.22;
 
   ctx.clearRect(0, 0, size, size);
 
-  // outer filled circle
   ctx.fillStyle = colorHex;
   ctx.beginPath();
   ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
   ctx.fill();
 
-  // punch out inner area to create ring gap
   ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
   ctx.arc(cx, cy, ringInnerR, 0, Math.PI * 2);
   ctx.fill();
 
-  // reset and draw center disc with same color
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = colorHex;
   ctx.beginPath();
@@ -506,7 +786,6 @@ function ensurePanelExtraStyles() {
       border-color: #facc15;
     }
 
-    /* trip planner toggle button in panel header (city view) */
     .trip-btn {
       border: 0;
       padding: 6px 10px;
@@ -551,7 +830,6 @@ function ensurePanelExtraStyles() {
       filter: brightness(1.2);
     }
 
-    /* inline styles for the weather block inside the city panel */
     .weather-block {
       margin: 0.5rem 0 0.2rem;
       padding: 0.45rem 0.6rem;
@@ -602,7 +880,6 @@ function ensurePanelExtraStyles() {
       opacity: 0.8;
     }
 
-    /* Country view: list of cities inside a country */
     .country-city-list {
       display: flex;
       flex-wrap: wrap;
@@ -637,7 +914,7 @@ function ensurePanelExtraStyles() {
   document.head.appendChild(style);
 }
 
-/* ---------- panel content renderer (depends on currentTag) ---------- */
+/* ---------- panel content renderer ---------- */
 
 function renderCityContent(city) {
   const container = panelInnerEl.querySelector('#panel-content');
@@ -705,11 +982,9 @@ async function fetchAndRenderWeather(city) {
   const iconEl = block.querySelector('.weather-icon');
   if (!bodyEl) return;
 
-  // Reset state for this city
   bodyEl.textContent = 'Loading...';
   if (iconEl) iconEl.innerHTML = '';
 
-  // If coordinates are missing, fail gracefully without breaking the panel
   if (typeof city.lat !== 'number' || typeof city.lng !== 'number') {
     bodyEl.textContent = 'No coordinates for weather.';
     return;
@@ -749,7 +1024,6 @@ async function fetchAndRenderWeather(city) {
       parts.push(`<span class="weather-meta">${meta.join(' · ')}</span>`);
     }
 
-    // Set icon if available
     if (iconEl) {
       if (data.icon) {
         const iconUrl = `https://openweathermap.org/img/wn/${encodeURIComponent(
@@ -781,14 +1055,114 @@ async function fetchAndRenderWeather(city) {
   }
 }
 
-/* ---------- CITY PANEL (unchanged behaviour, just renamed mentally) ---------- */
+/* ---------- smooth fly-to camera animation ---------- */
+
+let flyState = null;
+
+function easeInOutCubic(t) {
+  return t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+function startFlyToCityMesh(mesh) {
+  const cityWorld = mesh.getWorldPosition(new THREE.Vector3());
+  const dir = cityWorld.clone().normalize();
+
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+
+  const radius = camera.position.length();
+  const endPos = dir.multiplyScalar(radius * 0.5); // slight zoom-in
+  const endTarget = new THREE.Vector3(0, 0, 0);
+
+  flyState = {
+    startPos,
+    startTarget,
+    endPos,
+    endTarget,
+    startTime: performance.now(),
+    duration: 1200
+  };
+
+  controls.enabled = false;
+}
+
+// fly to a country center (approximate using that country’s first city)
+function startFlyToCountry(countryFeature) {
+  const countryName = countryFeature.properties?.name;
+  const city = allCities.find(c => c.country === countryName);
+  if (!city) return;
+
+  const mesh = findCityMesh(city);
+  if (mesh) {
+    startFlyToCityMesh(mesh);
+  }
+}
+
+// NEW: fly camera back to initial “home” view
+function startFlyHome() {
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+
+  const endPos = INITIAL_CAMERA_POS.clone();
+  const endTarget = INITIAL_CAMERA_TARGET.clone();
+
+  flyState = {
+    startPos,
+    startTarget,
+    endPos,
+    endTarget,
+    startTime: performance.now(),
+    duration: 1200
+  };
+
+  controls.enabled = false;
+}
+
+function updateFly() {
+  if (!flyState) return;
+  const now = performance.now();
+  const t = (now - flyState.startTime) / flyState.duration;
+  const k = t >= 1 ? 1 : easeInOutCubic(Math.min(Math.max(t, 0), 1));
+
+  const curPos = flyState.startPos.clone().lerp(flyState.endPos, k);
+  const curTarget = flyState.startTarget.clone().lerp(flyState.endTarget, k);
+
+  camera.position.copy(curPos);
+  controls.target.copy(curTarget);
+
+  if (t >= 1) {
+    flyState = null;
+    controls.enabled = true;
+  }
+}
+
+/* ---------- helper: shared close button wiring ---------- */
+
+function wirePanelCloseWithFlyHome() {
+  const closeBtn = document.getElementById('close-btn');
+  if (!closeBtn) return;
+  closeBtn.addEventListener('click', () => {
+    panelEl.classList.remove('open');
+    startFlyHome();
+  }, { once: true });
+}
+
+/* ---------- CITY PANEL ---------- */
 
 function openCityPanel(city) {
   ensurePanelExtraStyles();
-  currentTag = 'all'; // reset to all whenever you open a city
+  currentTag = 'all';
 
   const fav = isFavorite(city);
-  const inTrip = cityInTrip(city); // current trip membership state
+  const inTrip = cityInTrip(city);
 
   panelInnerEl.innerHTML = `
     <div class="panel-header">
@@ -805,7 +1179,6 @@ function openCityPanel(city) {
         >
           ${fav ? '★ Saved' : '☆ Save'}
         </button>
-        <!-- trip planner toggle button in the panel header -->
         <button
           class="trip-btn ${inTrip ? 'in-trip' : ''}"
           id="trip-btn"
@@ -818,9 +1191,8 @@ function openCityPanel(city) {
       </div>
     </div>
     <div class="panel-text">
-      <p>${city.name} is a great starting point for exploring ${city.country}.</p>
+      <p>${city.summary || `${city.name} is a great starting point for exploring ${city.country}.`}</p>
 
-      <!-- inline weather block; text is filled by fetchAndRenderWeather(city) -->
       <div id="weather-block" class="weather-block">
         <div class="weather-label">Current weather</div>
         <div class="weather-main">
@@ -847,15 +1219,11 @@ function openCityPanel(city) {
 
   panelEl.classList.add('open');
 
+  // shared close handler → fly home
+  wirePanelCloseWithFlyHome();
+
   // kick off weather fetch (non-blocking)
   fetchAndRenderWeather(city);
-
-  // close
-  document
-    .getElementById('close-btn')
-    ?.addEventListener('click', () => panelEl.classList.remove('open'), {
-      once: true
-    });
 
   // favorites toggle
   const favBtn = document.getElementById('fav-btn');
@@ -873,9 +1241,7 @@ function openCityPanel(city) {
       favBtn.textContent = nowFav ? '★ Saved' : '☆ Save';
       favBtn.setAttribute('aria-pressed', nowFav ? 'true' : 'false');
 
-      // update marker color (yellow ↔ red)
       updateCityMarker(city);
-      // refresh favorites bar under search
       renderFavoriteBar();
     });
   }
@@ -884,7 +1250,6 @@ function openCityPanel(city) {
   const tripBtn = document.getElementById('trip-btn');
   if (tripBtn) {
     tripBtn.addEventListener('click', () => {
-      // use existing logic so arcs + tray stay in sync
       toggleCityInTrip(city);
 
       const nowInTrip = cityInTrip(city);
@@ -909,11 +1274,10 @@ function openCityPanel(city) {
     });
   }
 
-  // initial render (All)
   renderCityContent(city);
 }
 
-/* ---------- COUNTRY PANEL (NEW) ---------- */
+/* ---------- COUNTRY PANEL ---------- */
 
 function openCountryPanel(countryFeature) {
   ensurePanelExtraStyles();
@@ -966,13 +1330,10 @@ function openCountryPanel(countryFeature) {
 
   panelEl.classList.add('open');
 
-  document
-    .getElementById('close-btn')
-    ?.addEventListener('click', () => panelEl.classList.remove('open'), {
-      once: true
-    });
+  // shared close handler → fly home
+  wirePanelCloseWithFlyHome();
 
-  // Wire up "Open city" buttons
+  // "Open city" buttons
   const listEl = panelInnerEl.querySelector('.country-city-list');
   if (listEl) {
     listEl.addEventListener('click', ev => {
@@ -1003,30 +1364,35 @@ new ResizeObserver(syncSize).observe(appEl);
 window.addEventListener('resize', syncSize);
 syncSize();
 
-/* ---------- COUNTRY LAYER: 4 countries, outline + label ON HOVER/ACTIVE ---------- */
+/* ---------- COUNTRY LAYER ---------- */
 
 const KEEP_IDS = new Set([372, 300, 208, 191]); // Ireland, Greece, Denmark, Croatia
 
 let countryFeatures = [];
 let hoverCountry = null;
-let activeCountry = null; // NEW: the country we have "opened"
+let activeCountry = null;
 
+/*
+ * POLYGON COLOURS
+ */
 function updateCountryStyles() {
   if (!countryFeatures.length) return;
   globe
     .polygonAltitude(d =>
-      d === hoverCountry || d === activeCountry ? 0.02 : 0.01
+      d === hoverCountry || d === activeCountry ? 0.015 : 0.007
     )
     .polygonCapColor(d => {
-      if (d === activeCountry) return 'rgba(120,180,255,0.32)';
-      return d === hoverCountry ? 'rgba(90,140,230,0.24)' : 'rgba(80,120,200,0.18)';
-    })
-    .polygonSideColor(() => 'rgba(100,150,255,0.22)')
-    .polygonStrokeColor(d => {
-      if (d === activeCountry) return 'rgba(255,255,255,0.95)';
+      if (d === activeCountry) return 'rgba(129, 140, 248, 0.60)';
       return d === hoverCountry
-        ? 'rgba(220,235,255,0.9)'
-        : 'rgba(180,200,255,0.45)';
+        ? 'rgba(59, 130, 246, 0.45)'
+        : 'rgba(56, 189, 248, 0.30)';
+    })
+    .polygonSideColor(() => 'rgba(96, 165, 250, 0.6)')
+    .polygonStrokeColor(d => {
+      if (d === activeCountry) return 'rgba(248, 250, 252, 1.0)';
+      return d === hoverCountry
+        ? 'rgba(191, 219, 254, 0.98)'
+        : 'rgba(125, 211, 252, 0.90)';
     });
 }
 
@@ -1039,12 +1405,12 @@ function setupCountries(geoFeatures) {
   updateCountryStyles();
 }
 
-/* ---------- GeoJSON point-in-polygon to detect hovered country ---------- */
+/* ---------- GeoJSON point-in-polygon ---------- */
 
 function pointInRing(lng, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];   // [lon, lat]
+    const [xi, yi] = ring[i];
     const [xj, yj] = ring[j];
     const intersect =
       ((yi > lat) !== (yj > lat)) &&
@@ -1056,9 +1422,9 @@ function pointInRing(lng, lat, ring) {
 
 function polygonContains(rings, lat, lng) {
   if (!rings.length) return false;
-  if (!pointInRing(lng, lat, rings[0])) return false; // outer ring
+  if (!pointInRing(lng, lat, rings[0])) return false;
   for (let i = 1; i < rings.length; i++) {
-    if (pointInRing(lng, lat, rings[i])) return false; // holes
+    if (pointInRing(lng, lat, rings[i])) return false;
   }
   return true;
 }
@@ -1099,7 +1465,7 @@ function showCountryTooltip(country, clientX, clientY) {
   tooltipEl.classList.add('show');
 }
 
-/* ---------- CLICK TARGETS + VISIBLE CITY MARKERS ---------- */
+/* ---------- CLICK TARGETS + CITY MARKERS ---------- */
 
 const hitGeometry = new THREE.SphereGeometry(GLOBE_R * 0.012, 16, 16);
 const hitMaterial = new THREE.MeshBasicMaterial({
@@ -1107,7 +1473,7 @@ const hitMaterial = new THREE.MeshBasicMaterial({
   wireframe: true,
   transparent: true,
   opacity: 0.35,
-  visible: false // press "h" to toggle if you ever want debug
+  visible: false
 });
 const clickTargets = [];
 
@@ -1123,13 +1489,11 @@ function setupClickTargets(cities) {
     .objectThreeObject(d => {
       const group = new THREE.Group();
 
-      // invisible hit sphere for raycasting
       const hit = new THREE.Mesh(hitGeometry, hitMaterial);
       hit.userData.city = d;
       group.add(hit);
       clickTargets.push(hit);
 
-      // visible marker sprite (ring + disc)
       const sprite = createCityMarkerSprite(d);
       group.add(sprite);
       cityMarkers.set(makeCityKey(d), sprite);
@@ -1138,7 +1502,6 @@ function setupClickTargets(cities) {
       return group;
     });
 
-  // soft country-first: hide all markers until a country is selected
   updateCityMarkersVisibility();
 }
 
@@ -1160,15 +1523,14 @@ function worldToLatLng(world) {
   const x = local.x, y = local.y, z = local.z;
   const r = Math.sqrt(x * x + y * y + z * z);
   const lat = THREE.MathUtils.radToDeg(Math.asin(y / r));
-  const lon = THREE.MathUtils.radToDeg(Math.atan2(z, -x)); // note -x
+  const lon = THREE.MathUtils.radToDeg(Math.atan2(z, -x));
   return { lat, lng: lon };
 }
 
 /* ---------- Trip plan state & helpers ---------- */
 
-const tripPlan = []; // array of city objects, in order of selection
+const tripPlan = [];
 
-// helper to check if a city is currently in the trip
 function cityInTrip(city) {
   const key = makeCityKey(city);
   return tripPlan.some(c => makeCityKey(c) === key);
@@ -1190,7 +1552,7 @@ function deg2rad(d) {
 }
 
 function distanceKm(a, b) {
-  const R = 6371; // Earth radius in km
+  const R = 6371;
   const dLat = deg2rad(b.lat - a.lat);
   const dLon = deg2rad(b.lng - a.lng);
   const lat1 = deg2rad(a.lat);
@@ -1218,7 +1580,7 @@ function recomputeTripStats() {
   if (!tripStatsEl) return;
 
   if (tripPlan.length === 0) {
-    tripStatsEl.textContent = 'Click a city to start a trip.';
+    tripStatsEl.textContent = 'Open a city panel and add it to your trip.';
     return;
   }
 
@@ -1233,8 +1595,8 @@ function recomputeTripStats() {
   }
 
   const legs = tripPlan.length - 1;
-  const cruiseSpeed = 800; // km/h
-  const layoverHours = 0.6; // rough overhead per leg
+  const cruiseSpeed = 800;
+  const layoverHours = 0.6;
   const flightHours = totalKm / cruiseSpeed + legs * layoverHours;
 
   tripStatsEl.textContent =
@@ -1329,89 +1691,16 @@ if (tripStopsEl) {
 
     const city = tripPlan[idx];
 
-    // remove button
     if (ev.target.closest('.trip-remove')) {
       tripPlan.splice(idx, 1);
       recomputeTripUIAndArcs();
       return;
     }
 
-    // click pill itself → fly to city + open city panel
     const mesh = findCityMesh(city);
     if (mesh) startFlyToCityMesh(mesh);
     openCityPanel(city);
   });
-}
-
-/* ---------- smooth fly-to camera animation ---------- */
-
-let flyState = null;
-
-function easeInOutCubic(t) {
-  return t < 0.5
-    ? 4 * t * t * t
-    : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-// NEW: a "back" easing that overshoots a bit before settling
-function easeOutBack(t) {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-}
-
-function startFlyToCityMesh(mesh) {
-  const cityWorld = mesh.getWorldPosition(new THREE.Vector3());
-  const dir = cityWorld.clone().normalize();
-
-  const startPos = camera.position.clone();
-  const startTarget = controls.target.clone();
-
-  const radius = camera.position.length();
-  const endPos = dir.multiplyScalar(radius * 0.5); // slight zoom-in
-  const endTarget = new THREE.Vector3(0, 0, 0);
-
-  flyState = {
-    startPos,
-    startTarget,
-    endPos,
-    endTarget,
-    startTime: performance.now(),
-    duration: 1200
-  };
-
-  controls.enabled = false;
-}
-
-// NEW: fly to a country center (we approximate using that country’s first city)
-function startFlyToCountry(countryFeature) {
-  const countryName = countryFeature.properties?.name;
-  const city = allCities.find(c => c.country === countryName);
-  if (!city) return;
-
-  const mesh = findCityMesh(city);
-  if (mesh) {
-    startFlyToCityMesh(mesh);
-  }
-}
-
-function updateFly() {
-  if (!flyState) return;
-  const now = performance.now();
-  const t = (now - flyState.startTime) / flyState.duration;
-  const k = t >= 1 ? 1 : easeInOutCubic(Math.min(Math.max(t, 0), 1));
-
-  const curPos = flyState.startPos.clone().lerp(flyState.endPos, k);
-  const curTarget = flyState.startTarget.clone().lerp(flyState.endTarget, k);
-
-  camera.position.copy(curPos);
-  controls.target.copy(curTarget);
-
-  if (t >= 1) {
-    flyState = null;
-    controls.enabled = true;
-  }
 }
 
 /* ---------- search helpers ---------- */
@@ -1434,7 +1723,6 @@ function findCityMesh(city) {
   );
 }
 
-// Helper: find country feature for a given city
 function findCountryFeatureForCity(city) {
   if (!countryFeatures.length) return null;
   return countryFeatures.find(
@@ -1442,7 +1730,6 @@ function findCountryFeatureForCity(city) {
   ) || null;
 }
 
-// Helper: set active country based on a city (used for search/favs)
 function setActiveCountryForCity(city) {
   const feat = findCountryFeatureForCity(city);
   if (!feat) return;
@@ -1452,8 +1739,6 @@ function setActiveCountryForCity(city) {
 }
 
 function startFlyToCity(city) {
-  // soft country-first: when we go straight to a city (search/fav),
-  // set its country active and reveal its markers.
   setActiveCountryForCity(city);
 
   const mesh = findCityMesh(city);
@@ -1527,7 +1812,6 @@ function wireSearch(cities) {
 
 /* ---------- CITY MARKER VISIBILITY + POP-IN ANIMATION ---------- */
 
-// Map of cityKey -> { start: number, duration: number }
 const cityAppearAnimations = new Map();
 
 function startCityMarkerAppear(city, delayMs = 0) {
@@ -1537,7 +1821,6 @@ function startCityMarkerAppear(city, delayMs = 0) {
   const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
 
   sprite.visible = true;
-  // start tiny; we'll grow it
   sprite.scale.set(0, 0, 1);
 
   cityAppearAnimations.set(key, {
@@ -1548,15 +1831,12 @@ function startCityMarkerAppear(city, delayMs = 0) {
   });
 }
 
-
-// Hide markers for all other countries; pop in markers for the selected country
 function revealCountryCitiesWithAnimation(countryFeature) {
   const countryName = countryFeature.properties?.name;
   if (!countryName) return;
 
   const citiesInCountry = allCities.filter(c => c.country === countryName);
 
-  // Hide all markers & stop animations for cities not in this country
   for (const [key, sprite] of cityMarkers.entries()) {
     const city = sprite.userData.city;
     const inCountry = city && city.country === countryName;
@@ -1566,7 +1846,6 @@ function revealCountryCitiesWithAnimation(countryFeature) {
     }
   }
 
-  // For markers in this country:
   citiesInCountry.forEach((city, idx) => {
     const key = makeCityKey(city);
     const sprite = cityMarkers.get(key);
@@ -1574,27 +1853,21 @@ function revealCountryCitiesWithAnimation(countryFeature) {
 
     const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
 
-    // 🔑 If the marker is already visible, don't restart the pop-in animation
     if (sprite.visible) {
-      // Just ensure it's at its final scale and not in the animation map
       sprite.scale.set(baseScale, baseScale, 1);
       cityAppearAnimations.delete(key);
       return;
     }
 
-    // Otherwise, this is the first time showing it → animate with a staggered delay
-    const baseDelay = 80;              // ms between dots
-    const jitter = Math.random() * 60; // small randomness so it's not too rigid
+    const baseDelay = 80;
+    const jitter = Math.random() * 60;
     const delayMs = idx * baseDelay + jitter;
     startCityMarkerAppear(city, delayMs);
   });
 }
 
-
-// When we change activeCountry, call this if we just want visibility update
 function updateCityMarkersVisibility() {
   if (!activeCountry) {
-    // No active country → nothing visible (soft country-first)
     for (const sprite of cityMarkers.values()) {
       sprite.visible = false;
     }
@@ -1617,7 +1890,6 @@ function updateCityAppearAnimations() {
     const delay = anim.delay || 0;
     const elapsed = now - anim.start - delay;
 
-    // Not started yet → keep it invisible/tiny
     if (elapsed <= 0) {
       sprite.scale.set(0, 0, 1);
       continue;
@@ -1626,10 +1898,8 @@ function updateCityAppearAnimations() {
     const tRaw = elapsed / anim.duration;
     const t = Math.min(1, Math.max(0, tRaw));
 
-    // Use our "back" easing for a little overshoot
     const eased = easeOutBack(t);
-    // Keep a minimum size so it doesn't feel too tiny at start
-    const factor = 0.2 + 0.8 * eased; // 0.2 → ~1.16 → 1.0
+    const factor = 0.2 + 0.8 * eased;
 
     const s = anim.baseScale * factor;
     sprite.scale.set(s, s, 1);
@@ -1640,7 +1910,6 @@ function updateCityAppearAnimations() {
     }
   }
 }
-
 
 /* ---------- picking ---------- */
 
@@ -1654,22 +1923,11 @@ function setFromEvent(ev) {
   raycaster.setFromCamera(ndc, camera);
 }
 
-// Handle click: prefer city if we clicked a marker; otherwise treat as country click
+// CLICK: cities are NOT clickable, only countries
 renderer.domElement.addEventListener('click', ev => {
   setFromEvent(ev);
 
-  // 1) Check if we hit a city click target
-  const hitCity = raycaster.intersectObjects(clickTargets, true)[0];
-  const city = hitCity?.object?.userData?.city;
-  if (city) {
-    // Soft country-first: clicking a city dot is allowed, but
-    // sets its country active & reveals markers.
-    setActiveCountryForCity(city);
-    startFlyToCity(city);
-    return;
-  }
-
-  // 2) Otherwise, see if we clicked on the globe sphere → country
+  // Only check the globe → pick country
   const hitSphere = raycaster.intersectObject(pickerSphere, true)[0];
   if (!hitSphere) return;
 
@@ -1677,7 +1935,6 @@ renderer.domElement.addEventListener('click', ev => {
   const country = pickCountryFromLatLng(lat, lng);
   if (!country) return;
 
-  // Set active country, fly to it, show its panel and reveal markers
   activeCountry = country;
   updateCountryStyles();
   revealCountryCitiesWithAnimation(country);
@@ -1685,15 +1942,10 @@ renderer.domElement.addEventListener('click', ev => {
   openCountryPanel(country);
 });
 
-// pointer move: city hover cursor + country hover label
+// pointer move: no city hover interaction, only country tooltip
 renderer.domElement.addEventListener('pointermove', ev => {
   setFromEvent(ev);
 
-  // 1) city hover for cursor
-  const hitCity = raycaster.intersectObjects(clickTargets, true)[0];
-  renderer.domElement.style.cursor = hitCity ? 'pointer' : 'grab';
-
-  // 2) country hover for tooltip
   const hitSphere = raycaster.intersectObject(pickerSphere, true)[0];
   if (!hitSphere) {
     if (hoverCountry) {
@@ -1701,6 +1953,7 @@ renderer.domElement.addEventListener('pointermove', ev => {
       updateCountryStyles();
       showCountryTooltip(null);
     }
+    renderer.domElement.style.cursor = 'grab';
     return;
   }
 
@@ -1711,6 +1964,8 @@ renderer.domElement.addEventListener('pointermove', ev => {
     hoverCountry = newHover;
     updateCountryStyles();
   }
+
+  renderer.domElement.style.cursor = newHover ? 'pointer' : 'grab';
   showCountryTooltip(newHover, ev.clientX, ev.clientY);
 });
 
@@ -1732,32 +1987,36 @@ renderer.domElement.addEventListener('mouseleave', () => {
     ).then(r => r.json());
     const world = feature(topo, topo.objects.countries);
 
-    setupCountries(world.features); // only 4 countries, outlined
-    setupClickTargets(cities);      // markers + click meshes (initially hidden)
-    wireSearch(cities);             // search
+    setupCountries(world.features);
+    setupClickTargets(cities);
+    wireSearch(cities);
 
-    // preload city images in the background
     if ('requestIdleCallback' in window) {
       requestIdleCallback(preloadCityImages);
     } else {
       setTimeout(preloadCityImages, 0);
     }
 
-    // initialise trip tray message
     recomputeTripUIAndArcs();
-
-    // initial favorites bar from localStorage
     renderFavoriteBar();
 
     function tick() {
       requestAnimationFrame(tick);
+
+      const now = performance.now();
+      const dtSec = (now - lastFrameTime) / 1000;
+      lastFrameTime = now;
+
       updateFly();
-      updateCityAppearAnimations(); // NEW: animate city markers popping in
+      updateCityAppearAnimations();
+      updateAutoRotate(dtSec);
       controls.update();
       renderer.render(scene, camera);
     }
     tick();
   } catch (e) {
     if (!fatalEl?.classList.contains('show')) fatal(e);
+  } finally {
+    if (loadingOverlayEl) loadingOverlayEl.classList.add('hidden');
   }
 })();

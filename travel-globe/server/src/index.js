@@ -29,7 +29,7 @@ app.get('/', (_req, res) => {
       <meta charset="utf-8"/>
       <title>Travel Globe API</title>
       <style>
-        body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-...;padding:24px;line-height:1.45;background:#020617;color:#e5e7eb}
+        body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px;line-height:1.45;background:#020617;color:#e5e7eb}
         a{color:#38bdf8;text-decoration:none}
         code{background:#020617;padding:2px 6px;border-radius:4px;border:1px solid #1f2937}
       </style>
@@ -52,8 +52,9 @@ app.get('/', (_req, res) => {
 // --- health ---
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// --- your 4 prototype cities with tags & experiences (no external links) ---
+// --- prototype cities (driven by the globe frontend) ---
 const cities = [
+  // -------- IRELAND --------
   {
     country: 'Ireland',
     name: 'Dublin',
@@ -115,6 +116,88 @@ const cities = [
     }
   },
   {
+    country: 'Ireland',
+    name: 'Cork',
+    lat: 51.8985,
+    lng: -8.4756,
+    pop: '~210K',
+    summary:
+      'Vibrant, compact city with a strong food scene and easy access to coastal and countryside escapes.',
+    tags: ['historical', 'food', 'nightlife', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'English Market & St. Anne’s Shandon',
+          detail:
+            'Start with the market, then climb the Shandon tower to ring the bells and get city views.'
+        }
+      ],
+      food: [
+        {
+          title: 'English Market tastings',
+          detail:
+            'Sample local cheeses, breads and produce inside the covered market.'
+        }
+      ],
+      nightlife: [
+        {
+          title: 'Riverside pubs',
+          detail:
+            'Follow the quays and duck into smaller pubs with live music.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Day trip to Kinsale or Cobh',
+          detail:
+            'Colorful coastal towns a short train or bus ride away.'
+        }
+      ]
+    }
+  },
+  {
+    country: 'Ireland',
+    name: 'Galway',
+    lat: 53.2707,
+    lng: -9.0568,
+    pop: '~80K',
+    summary:
+      'Lively university city on the west coast, gateway to Connemara and the Aran Islands.',
+    tags: ['historical', 'food', 'nightlife', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'Latin Quarter & old streets',
+          detail:
+            'Wander the medieval lanes between Eyre Square and the Spanish Arch.'
+        }
+      ],
+      food: [
+        {
+          title: 'Seafood along the quay',
+          detail:
+            'Fresh fish and oysters are the headline here.'
+        }
+      ],
+      nightlife: [
+        {
+          title: 'Pub music sessions',
+          detail:
+            'Small venues with trad music most nights of the week.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Day trip to Connemara',
+          detail:
+            'Rugged landscape of lakes, mountains and sea, reachable by tour or car.'
+        }
+      ]
+    }
+  },
+
+  // -------- GREECE --------
+  {
     country: 'Greece',
     name: 'Athens',
     lat: 37.9838,
@@ -174,6 +257,81 @@ const cities = [
       ]
     }
   },
+  {
+    country: 'Greece',
+    name: 'Thessaloniki',
+    lat: 40.6401,
+    lng: 22.9444,
+    pop: '~800K',
+    summary:
+      'Seafront city with Byzantine history, cafés and a big student population.',
+    tags: ['historical', 'food', 'nightlife', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'White Tower & waterfront walk',
+          detail:
+            'Iconic tower and relaxed promenade along the Thermaic Gulf.'
+        }
+      ],
+      food: [
+        {
+          title: 'Ladadika district',
+          detail:
+            'Packed with tavernas and meze spots in restored warehouses.'
+        }
+      ],
+      nightlife: [
+        {
+          title: 'Student bars and late cafés',
+          detail:
+            'The city stays lively well into the night, especially in the center.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Day trips to Halkidiki',
+          detail:
+            'Beaches and pine forests about an hour away.'
+        }
+      ]
+    }
+  },
+  {
+    country: 'Greece',
+    name: 'Heraklion',
+    lat: 35.3387,
+    lng: 25.1442,
+    pop: '~175K',
+    summary:
+      'Busy Cretan port city and practical base for ruins, beaches and mountain villages.',
+    tags: ['historical', 'food', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'Knossos Palace',
+          detail:
+            'Minoan ruins a short drive from the city.'
+        }
+      ],
+      food: [
+        {
+          title: 'Cretan tavernas',
+          detail:
+            'Olive oil, herbs and local cheeses are the stars of the menu.'
+        }
+      ],
+      nature: [
+        {
+          title: 'South coast and gorges',
+          detail:
+            'Use Heraklion as a base for day trips inland or to quieter beaches.'
+        }
+      ]
+    }
+  },
+
+  // -------- DENMARK --------
   {
     country: 'Denmark',
     name: 'Copenhagen',
@@ -235,6 +393,81 @@ const cities = [
     }
   },
   {
+    country: 'Denmark',
+    name: 'Aarhus',
+    lat: 56.1629,
+    lng: 10.2039,
+    pop: '~280K',
+    summary:
+      'Second city of Denmark with a big student population, museums and nearby beaches and forests.',
+    tags: ['historical', 'food', 'nightlife', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'Den Gamle By open-air museum',
+          detail:
+            'Walk through recreated streets from different eras.'
+        }
+      ],
+      food: [
+        {
+          title: 'Harborfront cafés',
+          detail:
+            'New development with relaxed places to eat and drink by the water.'
+        }
+      ],
+      nightlife: [
+        {
+          title: 'Student bars in the Latin Quarter',
+          detail:
+            'Compact area of lanes and small venues.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Moesgaard forest & beach',
+          detail:
+            'Woodland paths and sea views just south of the city.'
+        }
+      ]
+    }
+  },
+  {
+    country: 'Denmark',
+    name: 'Odense',
+    lat: 55.4038,
+    lng: 10.4024,
+    pop: '~180K',
+    summary:
+      'Birthplace of Hans Christian Andersen, with a relaxed center and easy access to the countryside of Funen.',
+    tags: ['historical', 'food', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'H. C. Andersen museum and old town',
+          detail:
+            'Colourful houses and exhibitions about the writer.'
+        }
+      ],
+      food: [
+        {
+          title: 'Cafés along the river',
+          detail:
+            'Casual spots to sit outside on good days.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Funen countryside & coasts',
+          detail:
+            'Short drives bring you to small villages and coastal paths.'
+        }
+      ]
+    }
+  },
+
+  // -------- CROATIA --------
+  {
     country: 'Croatia',
     name: 'Zagreb',
     lat: 45.815,
@@ -293,13 +526,86 @@ const cities = [
         }
       ]
     }
+  },
+  {
+    country: 'Croatia',
+    name: 'Split',
+    lat: 43.5081,
+    lng: 16.4402,
+    pop: '~180K',
+    summary:
+      'Adriatic hub built into the remains of Diocletian’s Palace, with ferries to islands and beaches nearby.',
+    tags: ['historical', 'food', 'nightlife', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'Diocletian’s Palace',
+          detail:
+            'Ancient Roman core that is now full of shops, cafés and apartments.'
+        }
+      ],
+      food: [
+        {
+          title: 'Seafood on the Riva',
+          detail:
+            'Harborfront promenade lined with places for grilled fish and wine.'
+        }
+      ],
+      nightlife: [
+        {
+          title: 'Old town bars',
+          detail:
+            'Streets and courtyards that fill up after sundown.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Marjan hill & beaches',
+          detail:
+            'Forest park with walking paths and swimming spots close to town.'
+        }
+      ]
+    }
+  },
+  {
+    country: 'Croatia',
+    name: 'Dubrovnik',
+    lat: 42.6507,
+    lng: 18.0944,
+    pop: '~40K',
+    summary:
+      'Fortified coastal city with dramatic walls and views over the Adriatic.',
+    tags: ['historical', 'food', 'nature'],
+    experiences: {
+      historical: [
+        {
+          title: 'City walls walk',
+          detail:
+            'Loop around the old town for views of terracotta roofs and sea cliffs.'
+        }
+      ],
+      food: [
+        {
+          title: 'Sea-view terraces',
+          detail:
+            'Restaurants and bars perched on the rocks outside the walls.'
+        }
+      ],
+      nature: [
+        {
+          title: 'Lokrum Island',
+          detail:
+            'Short boat ride to a quiet island with walking paths and swimming spots.'
+        }
+      ]
+    }
   }
 ];
 
 // --- cities endpoint (used by the globe frontend) ---
 app.get('/api/cities', (_req, res) => res.json(cities));
 
-// --- server-side Google Geocoding proxy (still here if you want it later) ---
+// --- server-side Google Geocoding proxy ---
 app.get('/api/geocode', async (req, res) => {
   try {
     if (!GOOGLE_KEY) {
@@ -308,7 +614,9 @@ app.get('/api/geocode', async (req, res) => {
     const q = String(req.query.q || '').trim();
     if (!q) return res.status(400).json({ error: 'Missing q parameter' });
 
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${GOOGLE_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+      q
+    )}&key=${GOOGLE_KEY}`;
     const r = await fetch(url);
     if (!r.ok) return res.status(502).json({ error: `Upstream ${r.status}` });
 
@@ -324,8 +632,7 @@ app.get('/api/geocode', async (req, res) => {
   }
 });
 
-// NEW: OpenWeather current weather proxy – used by the panel in the frontend.
-// If OPENWEATHER_KEY is missing, this will just return a 500 but the globe still works.
+// --- OpenWeather current weather proxy (used by the frontend panel) ---
 app.get('/api/weather', async (req, res) => {
   try {
     if (!OPENWEATHER_KEY) {
