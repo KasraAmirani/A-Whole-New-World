@@ -74,32 +74,49 @@ function ensureGlobalOverlays() {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 40px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
                    Roboto, Helvetica, Arial, sans-serif;
-      font-size: 20px;
+      font-size: 14px;
       color: #e5e7eb;
     }
-    #loading-overlay .loading-bar {
-      width: 180px;
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(15,23,42,1);
-      overflow: hidden;
-      border: 1px solid rgba(30,64,175,0.9);
+    #loading-overlay .loading-label {
+      opacity: 0.8;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 11px;
     }
-    #loading-overlay .loading-bar-fill {
-      width: 60%;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, #60a5fa, #22c55e, #f97316);
-      animation: loading-pulse 1.2s infinite ease-in-out;
-      transform-origin: left;
+
+    /* CSS Loaders "l11" loader */
+    /* HTML: <div class="loader"></div> */
+    .loader {
+      width: 50px;
+      aspect-ratio: 1;
+      box-shadow: 0 0 0 3px #fff inset;
+      border-radius: 50%;
+      position: relative;
+      animation: l11 7s infinite;
     }
-    @keyframes loading-pulse {
-      0% { transform: translateX(-60%); }
-      50% { transform: translateX(10%); }
-      100% { transform: translateX(100%); }
+    .loader:before,
+    .loader:after {
+      content: "";
+      position: absolute;
+      top: calc(100% + 3px);
+      left: calc(50% - 12.5px);
+      box-shadow: inherit;
+      width: 25px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      transform-origin: 50% -28px;
+      animation: l11 1.5s infinite;
+    }
+    .loader:after {
+      animation-delay: -0.75s;
+    }
+    @keyframes l11 {
+      100% {
+        transform: rotate(360deg);
+      }
     }
   `;
   document.head.appendChild(style);
@@ -108,10 +125,8 @@ function ensureGlobalOverlays() {
   loading.id = 'loading-overlay';
   loading.innerHTML = `
     <div class="loading-inner">
-      <div>Loading…</div>
-      <div class="loading-bar">
-        <div class="loading-bar-fill"></div>
-      </div>
+      <div class="loader"></div>
+      <div class="loading-label">Loading…</div>
     </div>
   `;
   document.body.appendChild(loading);
@@ -555,6 +570,7 @@ const GLOBE_R = typeof globe.getGlobeRadius === 'function'
 const POINT_ALT = 0.025; // same altitude for click targets
 
 // ---------- Custom atmosphere shader ----------
+
 const atmosphereMaterial = new THREE.ShaderMaterial({
   uniforms: {
     glowColor: { value: new THREE.Color(0x60a5fa) } // tweak this colour if you like
@@ -611,8 +627,17 @@ function markUserInteraction() {
 function updateAutoRotate(dtSec) {
   const now = performance.now();
   const idleFor = now - lastInteractionTime;
+
+  // only consider auto-rotate after some idle time
   if (idleFor < IDLE_TIMEOUT_MS) return;
-  if (flyState) return; // don't auto-rotate during fly-to animation
+
+  // never spin while a fly animation is running
+  if (flyState) return;
+
+  // optional: don't spin when a country/city panel is open
+  if (panelEl && panelEl.classList.contains('open')) return;
+
+  // slowly spin the globe around its Y axis (from current view)
   globe.rotation.y += IDLE_ROT_SPEED * dtSec;
 }
 
@@ -1144,6 +1169,25 @@ function updateFly() {
   }
 }
 
+/* ---------- helper: reset country + markers when closing ---------- */
+
+function resetCountrySelection() {
+  // clear active + hover country so polygons go back to normal
+  activeCountry = null;
+  hoverCountry = null;
+  updateCountryStyles();
+  showCountryTooltip(null);
+
+  // hide all city markers and stop their animations
+  if (cityAppearAnimations) {
+    cityAppearAnimations.clear();
+  }
+  for (const sprite of cityMarkers.values()) {
+    sprite.visible = false;
+    sprite.scale.set(0, 0, 1);
+  }
+}
+
 /* ---------- helper: shared close button wiring ---------- */
 
 function wirePanelCloseWithFlyHome() {
@@ -1151,6 +1195,9 @@ function wirePanelCloseWithFlyHome() {
   if (!closeBtn) return;
   closeBtn.addEventListener('click', () => {
     panelEl.classList.remove('open');
+    // clear active country + hide dots
+    resetCountrySelection();
+    // then fly back to the initial view
     startFlyHome();
   }, { once: true });
 }
@@ -1219,7 +1266,7 @@ function openCityPanel(city) {
 
   panelEl.classList.add('open');
 
-  // shared close handler → fly home
+  // shared close handler → reset + fly home
   wirePanelCloseWithFlyHome();
 
   // kick off weather fetch (non-blocking)
@@ -1330,7 +1377,7 @@ function openCountryPanel(countryFeature) {
 
   panelEl.classList.add('open');
 
-  // shared close handler → fly home
+  // shared close handler → reset + fly home
   wirePanelCloseWithFlyHome();
 
   // "Open city" buttons
