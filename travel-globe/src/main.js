@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Globe from 'three-globe';
 import { feature } from 'topojson-client';
 import { loadCities, loadWeather } from './api.js'; // /api/cities + /api/weather
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 const appEl = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -88,7 +89,6 @@ function ensureGlobalOverlays() {
     }
 
     /* CSS Loaders "l11" loader */
-    /* HTML: <div class="loader"></div> */
     .loader {
       width: 50px;
       aspect-ratio: 1;
@@ -514,6 +514,7 @@ camera.position.set(0, 0, 280);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+// controls.dampingFactor = 0.07;
 controls.minDistance = 120;
 controls.maxDistance = 500;
 controls.enablePan = false;
@@ -521,6 +522,8 @@ controls.enablePan = false;
 // store the “home” view for fly-back animation
 const INITIAL_CAMERA_POS = camera.position.clone();
 const INITIAL_CAMERA_TARGET = controls.target.clone();
+// base distance we consider the "level"
+const BASE_CAMERA_RADIUS = INITIAL_CAMERA_POS.length();
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 const dir = new THREE.DirectionalLight(0xffffff, 0.6);
@@ -643,11 +646,15 @@ function updateAutoRotate(dtSec) {
 
 /* ---------- marker textures (ring + inner disc) ---------- */
 
-const markerTextures = {};         // { normal: Texture, fav: Texture }
+const markerTextures = {};         // { normal: Texture, fav: Texture, selected: Texture }
 const cityMarkers = new Map();     // key -> THREE.Sprite
 
-const NORMAL_COLOR = '#ffd977';    // yellow
-const FAV_COLOR    = '#eb2020ff';  // red
+const NORMAL_COLOR   = '#ffd977';    // yellow
+const FAV_COLOR      = '#eb2020ff';  // red
+const SELECTED_COLOR = '#2ef138ff';    // soft indigo for active city
+
+// which city is currently selected (for panel / fly-to)
+let selectedCityKey = null;
 
 // base scale for city markers (we animate up to this size)
 const CITY_MARKER_BASE_SCALE = GLOBE_R * 0.012;
@@ -690,13 +697,27 @@ function makeRingTexture(colorHex) {
 
 function getMarkerTexture(kind) {
   if (markerTextures[kind]) return markerTextures[kind];
-  const color = kind === 'fav' ? FAV_COLOR : NORMAL_COLOR;
+  let color;
+  if (kind === 'fav') {
+    color = FAV_COLOR;
+  } else if (kind === 'selected') {
+    color = SELECTED_COLOR;
+  } else {
+    color = NORMAL_COLOR;
+  }
   markerTextures[kind] = makeRingTexture(color);
   return markerTextures[kind];
 }
 
+function getMarkerKind(city) {
+  const key = makeCityKey(city);
+  if (key === selectedCityKey) return 'selected';
+  if (isFavorite(city)) return 'fav';
+  return 'normal';
+}
+
 function createCityMarkerSprite(city) {
-  const kind = isFavorite(city) ? 'fav' : 'normal';
+  const kind = getMarkerKind(city);
   const tex = getMarkerTexture(kind);
   const mat = new THREE.SpriteMaterial({
     map: tex,
@@ -718,9 +739,34 @@ function updateCityMarker(city) {
   const key = makeCityKey(city);
   const sprite = cityMarkers.get(key);
   if (!sprite) return;
-  const kind = isFavorite(city) ? 'fav' : 'normal';
+  const kind = getMarkerKind(city);
   sprite.material.map = getMarkerTexture(kind);
   sprite.material.needsUpdate = true;
+}
+
+// set the selected city → adjust textures
+function setSelectedCity(cityOrNull) {
+  const newKey = cityOrNull ? makeCityKey(cityOrNull) : null;
+  if (newKey === selectedCityKey) return;
+
+  const prevKey = selectedCityKey;
+  selectedCityKey = newKey;
+
+  if (prevKey && cityMarkers.has(prevKey)) {
+    const sprite = cityMarkers.get(prevKey);
+    const city = sprite.userData.city;
+    const kind = getMarkerKind(city);
+    sprite.material.map = getMarkerTexture(kind);
+    sprite.material.needsUpdate = true;
+  }
+
+  if (newKey && cityMarkers.has(newKey)) {
+    const sprite = cityMarkers.get(newKey);
+    const city = sprite.userData.city;
+    const kind = getMarkerKind(city);
+    sprite.material.map = getMarkerTexture(kind);
+    sprite.material.needsUpdate = true;
+  }
 }
 
 /* ---------- inject extra CSS for panel text, tags, photos & country view ---------- */
@@ -743,11 +789,35 @@ function ensurePanelExtraStyles() {
       overflow-wrap: break-word;
     }
     .panel-section-title {
-      margin: 0.8rem 0 0.35rem;
+      margin: 0.9rem 0 0.35rem;
       font-size: 15px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       opacity: 0.9;
+    }
+    .panel-header-main{
+      display: flex;
+      align-items: center;
+      gap: 10 px
+    }
+    .panel-back-btn{
+      border: 1px solid rgba(148,163,184,0.7);
+
+      padding: 4px 9px;
+      border-radius: 999px;
+      transform: translateX(-10px);
+      background: rgba(15,23,42,0.95);
+      color: #e5e7eb;
+      cursor: pointer;
+      font-size: 13 px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .panel-back-btn:hover {
+      background: rgba(37, 64, 175, 0.95);
+      border-color: rgba(191, 219, 254, 0.95);
     }
     .panel-experiences {
       list-style: none;
@@ -1131,12 +1201,15 @@ function startFlyToCountry(countryFeature) {
   }
 }
 
-// NEW: fly camera back to initial “home” view
+// fly camera back to "level" at current direction
 function startFlyHome() {
   const startPos = camera.position.clone();
   const startTarget = controls.target.clone();
 
-  const endPos = INITIAL_CAMERA_POS.clone();
+  // Direction we are currently looking at
+  const dir = startPos.clone().normalize();
+
+  const endPos = dir.multiplyScalar(BASE_CAMERA_RADIUS);
   const endTarget = INITIAL_CAMERA_TARGET.clone();
 
   flyState = {
@@ -1177,6 +1250,7 @@ function resetCountrySelection() {
   hoverCountry = null;
   updateCountryStyles();
   showCountryTooltip(null);
+  setSelectedCity(null);
 
   // hide all city markers and stop their animations
   if (cityAppearAnimations) {
@@ -1195,9 +1269,9 @@ function wirePanelCloseWithFlyHome() {
   if (!closeBtn) return;
   closeBtn.addEventListener('click', () => {
     panelEl.classList.remove('open');
-    // clear active country + hide dots
+    // clear active country + hide dots + clear selection
     resetCountrySelection();
-    // then fly back to the initial view
+    // then fly back to the initial view level in current direction
     startFlyHome();
   }, { once: true });
 }
@@ -1213,9 +1287,19 @@ function openCityPanel(city) {
 
   panelInnerEl.innerHTML = `
     <div class="panel-header">
-      <div>
-        <h2 class="panel-title">${city.name}, ${city.country}</h2>
-        <p class="muted">Population ${city.pop ?? ''}</p>
+      <div class="panel-header-main">
+        <button
+          class="panel-back-btn"
+          id="back-btn"
+          type="button"
+          aria-label="Back to country"
+        >
+          ←
+        </button>
+        <div>
+          <h2 class="panel-title">${city.name}, ${city.country}</h2>
+          <p class="muted">Population ${city.pop ?? ''}</p>
+        </div>
       </div>
       <div class="panel-header-actions">
         <button
@@ -1268,6 +1352,23 @@ function openCityPanel(city) {
 
   // shared close handler → reset + fly home
   wirePanelCloseWithFlyHome();
+
+    // NEW: back button → go from city back to its country
+  const backBtn = document.getElementById('back-btn');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      const countryFeature = findCountryFeatureForCity(city);
+      if (!countryFeature) return;
+
+      // clear selected city so dot color goes back to normal
+      setSelectedCity(null);
+
+      // open the country panel for this city’s country
+      openCountryPanel(countryFeature);
+    });
+  }
+
+
 
   // kick off weather fetch (non-blocking)
   fetchAndRenderWeather(city);
@@ -1332,7 +1433,7 @@ function openCountryPanel(countryFeature) {
 
   const countryName = countryFeature.properties?.name || 'Country';
   const info = COUNTRY_INFO[countryName] || {
-    summary: `${countryName} is one of the prototype countries in this globe.`
+    summary: `${countryName} is one of the European countries in this globe.`
   };
 
   const citiesInCountry = allCities.filter(c => c.country === countryName);
@@ -1413,7 +1514,83 @@ syncSize();
 
 /* ---------- COUNTRY LAYER ---------- */
 
-const KEEP_IDS = new Set([372, 300, 208, 191]); // Ireland, Greece, Denmark, Croatia
+// List of country names as they appear in world-atlas / Natural Earth
+// (we include a few aliases to be safe).
+const EUROPE_COUNTRY_NAMES = new Set([
+  'Albania',
+  'Andorra',
+  'Austria',
+  'Belarus',
+  'Belgium',
+  'Bosnia and Herzegovina',
+  'Bulgaria',
+  'Croatia',
+  'Cyprus',
+  'Czechia',
+  'Czech Republic',
+  'Denmark',
+  'Estonia',
+  'Finland',
+  'France',
+  'Germany',
+  'Greece',
+  'Hungary',
+  'Iceland',
+  'Ireland',
+  'Italy',
+  'Kosovo',
+  'Latvia',
+  'Liechtenstein',
+  'Lithuania',
+  'Luxembourg',
+  'Malta',
+  'Moldova',
+  'Monaco',
+  'Montenegro',
+  'Netherlands',
+  'North Macedonia',
+  'Macedonia',
+  'Norway',
+  'Poland',
+  'Portugal',
+  'Romania',
+  'Russia',
+  'Russian Federation',
+  'San Marino',
+  'Serbia',
+  'Slovakia',
+  'Slovenia',
+  'Spain',
+  'Sweden',
+  'Switzerland',
+  'Ukraine',
+  'United Kingdom',
+  'UK',
+  'Vatican',
+  'Holy See',
+  'Vatican City',
+  // optionally treat these as “in scope”:
+  'Turkey'
+]);
+
+function normalizeCountryName(name) {
+  if (!name) return '';
+  const n = name.trim();
+
+  // North Macedonia ↔ Macedonia
+  if (/^north macedonia$/i.test(n)) return 'Macedonia';
+  if (/^macedonia$/i.test(n))       return 'Macedonia';
+
+  return n;
+}
+
+
+function isEuropeanCountryFeature(f) {
+  const name = f.properties?.name;
+  if (!name) return false;
+  return EUROPE_COUNTRY_NAMES.has(name);
+}
+
 
 let countryFeatures = [];
 let hoverCountry = null;
@@ -1444,12 +1621,16 @@ function updateCountryStyles() {
 }
 
 function setupCountries(geoFeatures) {
-  countryFeatures = geoFeatures.filter(f => KEEP_IDS.has(Number(f.id)));
+  // Only keep European countries
+  countryFeatures = geoFeatures.filter(isEuropeanCountryFeature);
+
   globe.polygonsData(countryFeatures);
   if (typeof globe.polygonsTransitionDuration === 'function') {
     globe.polygonsTransitionDuration(0);
   }
   updateCountryStyles();
+
+  console.log('Loaded European countries:', countryFeatures.map(f => f.properties?.name));
 }
 
 /* ---------- GeoJSON point-in-polygon ---------- */
@@ -1507,6 +1688,19 @@ function showCountryTooltip(country, clientX, clientY) {
   }
   const name = country.properties?.name || '';
   tooltipEl.textContent = name;
+  tooltipEl.style.left = `${clientX}px`;
+  tooltipEl.style.top = `${clientY}px`;
+  tooltipEl.classList.add('show');
+}
+
+function showCityTooltip(city, clientX, clientY) {
+  if (!tooltipEl) return;
+  if (!city) {
+    tooltipEl.classList.remove('show');
+    return;
+  }
+  const label = `${city.name}, ${city.country}`;
+  tooltipEl.textContent = label;
   tooltipEl.style.left = `${clientX}px`;
   tooltipEl.style.top = `${clientY}px`;
   tooltipEl.classList.add('show');
@@ -1746,7 +1940,7 @@ if (tripStopsEl) {
 
     const mesh = findCityMesh(city);
     if (mesh) startFlyToCityMesh(mesh);
-    openCityPanel(city);
+    startFlyToCity(city);
   });
 }
 
@@ -1772,10 +1966,14 @@ function findCityMesh(city) {
 
 function findCountryFeatureForCity(city) {
   if (!countryFeatures.length) return null;
-  return countryFeatures.find(
-    f => f.properties?.name === city.country
-  ) || null;
+  const cityCountry = normalizeCountryName(city.country);
+  return (
+    countryFeatures.find(f =>
+      normalizeCountryName(f.properties?.name) === cityCountry
+    ) || null
+  );
 }
+
 
 function setActiveCountryForCity(city) {
   const feat = findCountryFeatureForCity(city);
@@ -1787,6 +1985,7 @@ function setActiveCountryForCity(city) {
 
 function startFlyToCity(city) {
   setActiveCountryForCity(city);
+  setSelectedCity(city);
 
   const mesh = findCityMesh(city);
   if (mesh) {
@@ -1872,17 +2071,18 @@ function startCityMarkerAppear(city, delayMs = 0) {
 
   cityAppearAnimations.set(key, {
     start: performance.now(),
-    duration: 15000,
+    duration: 1500,
     baseScale,
     delay: delayMs
   });
 }
 
 function revealCountryCitiesWithAnimation(countryFeature) {
-  const countryName = countryFeature.properties?.name;
+  const countryName = countryFeature.properties?.name || 'Country';
+  const countryNorm = normalizeCountryName(countryName);
   if (!countryName) return;
 
-  const citiesInCountry = allCities.filter(c => c.country === countryName);
+  const citiesInCountry = allCities.filter(c => normalizeCountryName(c.country) === countryNorm);
 
   for (const [key, sprite] of cityMarkers.entries()) {
     const city = sprite.userData.city;
@@ -1970,11 +2170,35 @@ function setFromEvent(ev) {
   raycaster.setFromCamera(ndc, camera);
 }
 
-// CLICK: cities are NOT clickable, only countries
+// find a city under the current ray (only if its sprite is visible)
+function pickCityUnderPointer() {
+  const hits = raycaster.intersectObjects(clickTargets, true);
+  for (const h of hits) {
+    const mesh = h.object;
+    const city = mesh.userData.city;
+    if (!city) continue;
+    const key = makeCityKey(city);
+    const sprite = cityMarkers.get(key);
+    if (!sprite || !sprite.visible) continue;
+    return { city, point: h.point };
+  }
+  return null;
+}
+
+// CLICK: cities are now clickable when a country is active
 renderer.domElement.addEventListener('click', ev => {
   setFromEvent(ev);
 
-  // Only check the globe → pick country
+  // if we have an active country, try clicking a city first
+  if (activeCountry) {
+    const hitCity = pickCityUnderPointer();
+    if (hitCity) {
+      startFlyToCity(hitCity.city);
+      return;
+    }
+  }
+
+  // Otherwise, pick country by globe hit
   const hitSphere = raycaster.intersectObject(pickerSphere, true)[0];
   if (!hitSphere) return;
 
@@ -1989,10 +2213,28 @@ renderer.domElement.addEventListener('click', ev => {
   openCountryPanel(country);
 });
 
-// pointer move: no city hover interaction, only country tooltip
+// pointer move:
+// - when NO country is active → hover shows country name (old behaviour)
+// - when a country is active → hover shows CITY names over dots
 renderer.domElement.addEventListener('pointermove', ev => {
   setFromEvent(ev);
 
+  // If a country is active, prioritise city hover
+  if (activeCountry) {
+    const hitCity = pickCityUnderPointer();
+    if (hitCity) {
+      renderer.domElement.style.cursor = 'pointer';
+      showCityTooltip(hitCity.city, ev.clientX, ev.clientY);
+      return;
+    }
+
+    // No city under cursor while focused on a country
+    showCityTooltip(null);
+    renderer.domElement.style.cursor = 'grab';
+    return;
+  }
+
+  // Default: hover countries like before
   const hitSphere = raycaster.intersectObject(pickerSphere, true)[0];
   if (!hitSphere) {
     if (hoverCountry) {
