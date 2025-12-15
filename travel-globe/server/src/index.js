@@ -20,7 +20,6 @@ const OPENWEATHER_KEY = process.env.OPENWEATHER_KEY;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// NOTE: this should point to: server/data/ne_110m_populated_places.geojson
 const POP_DATA_PATH = path.join(
   __dirname,
   '../data/ne_10m_populated_places.geojson'
@@ -28,7 +27,6 @@ const POP_DATA_PATH = path.join(
 
 /**
  * ISO_A2 codes for "Europe-ish" countries.
- * You can tweak this list if you want to be stricter/looser.
  */
 const EUROPE_ISO2 = new Set([
   'AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR', 'CY',
@@ -38,6 +36,75 @@ const EUROPE_ISO2 = new Set([
   'RS', 'SK', 'SI', 'ES', 'SE', 'CH', 'UA', 'GB', 'VA',
   'TR', '-99',
 ]);
+
+// ---------- Vacation-type city tags (Option A: server attaches `tags` to each city) ----------
+// These tags are used by the frontend to show/hide city dots when filtering within a country.
+
+function normCityKey(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // strip diacritics
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+const VACATION_TAG_CITY_NAMES = {
+  beach: [
+    'Stavanger', 'Gothenburg', 'Malmö', 'İzmir', 'Athens', 'Thessaloniki', 'Piraeus', 'Varna',
+    'Split', 'Rijeka', 'Naples', 'Marseille', 'Barcelona', 'Seville', 'Lisbon', 'Porto', 'Braga'
+  ],
+  nature: [
+    'Oslo', 'Bergen', 'Stavanger', 'Stockholm', 'Tampere', 'Reykjavík', 'Akureyri', 'Keflavík',
+    'Geneva', 'Zurich', 'Split', 'Ljubljana', 'Maribor', 'Podgorica', 'Klaipėda', 'Liepāja',
+    'Novosibirsk', 'Dnipro'
+  ],
+  culture: [
+    'Moscow', 'Saint Petersburg', 'Novosibirsk', 'Tallinn', 'Tartu', 'Narva', 'Riga', 'Daugavpils',
+    'Vilnius', 'Kaunas', 'Minsk', 'Gomel', 'Mogilev', 'Kyiv', 'Kharkiv', 'Dnipro', 'Chișinău',
+    'Tiraspol', 'Bălți', 'Istanbul', 'Ankara', 'Athens', 'Thessaloniki', 'Piraeus', 'Sofia',
+    'Plovdiv', 'Varna', 'Bucharest', 'Iași', 'Cluj-Napoca', 'Katowice', 'Warsaw', 'Łódź',
+    'Tirana', 'Elbasan', 'Shkodër', 'Pristina', 'Prizren', 'Peja', 'Podgorica', 'Belgrade', 'Niš',
+    'Novi Sad', 'Budapest', 'Miskolc', 'Debrecen', 'Bratislava', 'Košice', 'Prešov', 'Prague',
+    'Ostrava', 'Brno', 'Vienna', 'Linz', 'Graz', 'Ljubljana', 'Maribor', 'Zagreb', 'Rome', 'Milan',
+    'Naples', 'Berlin', 'Stuttgart', 'Frankfurt', 'The Hague', 'Amsterdam', 'Rotterdam', 'Brussels',
+    'Antwerp', 'Liège', 'Luxembourg', 'Diekirch', 'Grevenmacher', 'Paris', 'Lyon', 'Marseille',
+    'Madrid', 'Barcelona', 'Seville', 'London', 'Birmingham', 'Manchester', 'Dublin', 'Cork',
+    'Limerick', 'Oslo', 'Stockholm', 'Gothenburg', 'Malmö', 'Helsinki', 'Tampere', 'Turku'
+  ],
+  adventure: [
+    'Bergen', 'Stavanger', 'Reykjavík', 'Akureyri', 'Peja', 'Split', 'Geneva', 'Zurich', 'Naples'
+  ],
+  food: [
+    'Gothenburg', 'Malmö', 'Tampere', 'Istanbul', 'Athens', 'Thessaloniki', 'Rome', 'Milan', 'Paris',
+    'Lyon', 'Lisbon', 'Porto', 'Barcelona', 'Vienna', 'Brussels'
+  ],
+  design: [
+    'Helsinki', 'Vienna', 'Prague', 'Milan', 'Paris', 'Rotterdam', 'Amsterdam', 'Barcelona', 'Brussels'
+  ],
+  family: [
+    'Tampere', 'Gothenburg', 'Ljubljana', 'Vienna', 'Dublin', 'Split', 'Athens', 'Reykjavík'
+  ],
+  romantic: [
+    'Turku', 'Paris', 'Rome', 'Vienna', 'Prague', 'Barcelona', 'Lisbon'
+  ]
+};
+
+// Precompute a normalized-name -> tags[] map
+const CITY_TAG_LOOKUP = new Map();
+for (const [tagId, names] of Object.entries(VACATION_TAG_CITY_NAMES)) {
+  for (const n of names) {
+    const key = normCityKey(n);
+    if (!key) continue;
+    const arr = CITY_TAG_LOOKUP.get(key) || [];
+    if (!arr.includes(tagId)) arr.push(tagId);
+    CITY_TAG_LOOKUP.set(key, arr);
+  }
+}
+
+function tagsForCityName(cityName) {
+  return CITY_TAG_LOOKUP.get(normCityKey(cityName)) || [];
+}
 
 // ---------- FALLBACK: your original 12 prototype cities ----------
 
@@ -263,6 +330,12 @@ const cities = GENERATED_CITIES && GENERATED_CITIES.length
   ? GENERATED_CITIES
   : FALLBACK_CITIES;
 
+// Attach vacation-type tags to each city (non-breaking: extra field)
+const citiesWithTags = cities.map(c => ({
+  ...c,
+  tags: tagsForCityName(c.name)
+}));
+
 // ---------- middleware ----------
 
 app.use(helmet());
@@ -305,7 +378,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // --- cities endpoint (used by the globe frontend) ---
 app.get('/api/cities', (_req, res) => {
-  res.json(cities);
+  res.json(citiesWithTags);
 });
 
 // --- server-side Google Geocoding proxy ---
@@ -383,5 +456,5 @@ app.get('/api/weather', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`API ready on http://localhost:${PORT}`);
   console.log(`Allowed origin: ${ORIGIN}`);
-  console.log(`Using ${cities.length} cities (${GENERATED_CITIES ? 'Natural Earth' : 'fallback list'})`);
+  console.log(`Using ${citiesWithTags.length} cities (${GENERATED_CITIES ? 'Natural Earth' : 'fallback list'})`);
 });

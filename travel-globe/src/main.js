@@ -41,7 +41,7 @@ function ensureGlobalOverlays() {
       bottom: 12px;
       padding: 6px 12px;
       border-radius: 999px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(11, 29, 74, 0.941);
       border: 1px solid rgba(148, 163, 184, 0.7);
       color: #e5e7eb;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -118,6 +118,63 @@ function ensureGlobalOverlays() {
         transform: rotate(360deg);
       }
     }
+          /* --- Start gate additions --- */
+    #loading-overlay .hero {
+      text-align: center;
+      max-width: 520px;
+      padding: 0 18px;
+      line-height: 1.35;
+    }
+
+    #loading-overlay .hero .tagline {
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      opacity: 0.92;
+    }
+
+    #loading-overlay .hero .brand {
+      display: inline-block;
+      margin-left: 6px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    #start-btn {
+      border: 1px solid rgba(148, 163, 184, 0.75);
+      background: rgba(11, 29, 74, 0.92);
+      color: #e5e7eb;
+      padding: 10px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font: 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, Helvetica, Arial, sans-serif;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      backdrop-filter: blur(10px);
+      transform: translateY(2px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+
+    #start-btn:hover {
+      background: rgba(37, 99, 235, 0.30);
+      transform: translateY(0px);
+    }
+
+    /* When app is ready, hide loader + show start button */
+    #loading-overlay.ready .loader,
+    #loading-overlay.ready .loading-label {
+      display: none;
+    }
+
+    #loading-overlay.ready #start-btn {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
   `;
   document.head.appendChild(style);
 
@@ -127,8 +184,18 @@ function ensureGlobalOverlays() {
     <div class="loading-inner">
       <div class="loader"></div>
       <div class="loading-label">Loading…</div>
+
+      <div class="hero">
+        <div class="tagline">
+          Start planning your vacation with
+          <span class="brand">A Whole New World</span>
+        </div>
+      </div>
+
+      <button id="start-btn" type="button" disabled>Start</button>
     </div>
   `;
+
   document.body.appendChild(loading);
 
   const instr = document.createElement('div');
@@ -139,6 +206,34 @@ function ensureGlobalOverlays() {
 
 ensureGlobalOverlays();
 const loadingOverlayEl = document.getElementById('loading-overlay');
+function showStartGate() {
+  const overlay = document.getElementById('loading-overlay');
+  if (!overlay) return;
+
+  overlay.classList.add('ready');
+
+  const btn = overlay.querySelector('#start-btn');
+  if (!btn) return;
+
+  btn.disabled = false;
+  btn.focus();
+
+  const enterApp = () => overlay.classList.add('hidden');
+
+  btn.addEventListener('click', enterApp, { once: true });
+
+  // Optional: Enter key starts too
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Enter' && overlay && !overlay.classList.contains('hidden')) {
+        enterApp();
+      }
+    },
+    { once: true }
+  );
+}
+
 
 /* ---------- TAGS + CITY MEDIA ---------- */
 
@@ -149,6 +244,31 @@ const TAG_DEFS = [
   { id: 'nightlife', label: 'Nightlife' },
   { id: 'nature',    label: 'Nature' }
 ];
+
+
+/* ---------- COUNTRY-LEVEL CITY FILTERS (VACATION TYPES) ---------- */
+
+/**
+ * These filters control which *city dots* appear for the selected country.
+ * They are independent from TAG_DEFS, which filters content *within a city panel*.
+ *
+ * Backend returns `city.tags: string[]` (e.g. ['beach','food']).
+ */
+const COUNTRY_FILTER_DEFS = [
+  { id: 'all',       label: 'All' },
+  { id: 'beach',     label: 'Beach' },
+  { id: 'nature',    label: 'Nature' },
+  { id: 'culture',   label: 'Culture' },
+  { id: 'adventure', label: 'Adventure' },
+  { id: 'food',      label: 'Food' },
+  { id: 'design',    label: 'Design' },
+  { id: 'family',    label: 'Family' },
+  { id: 'romantic',  label: 'Romantic' }
+];
+
+// active country-level filters (controls visible city markers)
+let countryFilterCountry = null;        // string country name currently shown in the country panel
+let activeCountryFilters = new Set();   // Set<tagId>, excluding 'all' (empty == all)
 
 /**
  * Per-city travel content for this prototype.
@@ -513,6 +633,82 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
 camera.position.set(0, 0, 280);
 
 const controls = new OrbitControls(camera, renderer.domElement);
+
+// --- Controls tuning GUI (lil-gui) ---
+const controlsGUI = new GUI({ title: 'Controls' });
+
+// A small state object so we can clamp/format values nicely
+const ctrlState = {
+  rotateSpeed: controls.rotateSpeed ?? 1,
+  zoomSpeed: controls.zoomSpeed ?? 1,
+  enableDamping: controls.enableDamping ?? true,
+  dampingFactor: controls.dampingFactor ?? 0.05,
+  minDistance: controls.minDistance ?? 120,
+  maxDistance: controls.maxDistance ?? 500,
+  enablePan: controls.enablePan ?? false,
+  autoRotate: controls.autoRotate ?? false,
+  autoRotateSpeed: controls.autoRotateSpeed ?? 2.0,
+  resetView: () => {
+    controls.reset(); // resets to initial state captured by OrbitControls
+  }
+};
+
+// Rotation / drag feel
+controlsGUI
+  .add(ctrlState, 'rotateSpeed', 0.1, 3.0, 0.05)
+  .name('Drag sensitivity')
+  .onChange(v => (controls.rotateSpeed = v));
+
+// Scroll zoom feel
+controlsGUI
+  .add(ctrlState, 'zoomSpeed', 0.1, 3.0, 0.05)
+  .name('Zoom sensitivity')
+  .onChange(v => (controls.zoomSpeed = v));
+
+// Damping (inertia)
+controlsGUI
+  .add(ctrlState, 'enableDamping')
+  .name('Inertia')
+  .onChange(v => (controls.enableDamping = v));
+
+controlsGUI
+  .add(ctrlState, 'dampingFactor', 0.0, 0.2, 0.005)
+  .name('Inertia amount')
+  .onChange(v => (controls.dampingFactor = v));
+
+// Distance limits
+controlsGUI
+  .add(ctrlState, 'minDistance', 50, 400, 1)
+  .name('Min zoom')
+  .onChange(v => (controls.minDistance = v));
+
+controlsGUI
+  .add(ctrlState, 'maxDistance', 200, 1200, 1)
+  .name('Max zoom')
+  .onChange(v => (controls.maxDistance = v));
+
+// Optional extras
+controlsGUI
+  .add(ctrlState, 'enablePan')
+  .name('Enable pan')
+  .onChange(v => (controls.enablePan = v));
+
+controlsGUI
+  .add(ctrlState, 'autoRotate')
+  .name('Auto rotate')
+  .onChange(v => (controls.autoRotate = v));
+
+controlsGUI
+  .add(ctrlState, 'autoRotateSpeed', 0.1, 10.0, 0.1)
+  .name('Auto rotate speed')
+  .onChange(v => (controls.autoRotateSpeed = v));
+
+controlsGUI.add(ctrlState, 'resetView').name('Reset view');
+
+// (Optional) start closed
+controlsGUI.close();
+
+
 controls.enableDamping = true;
 // controls.dampingFactor = 0.07;
 controls.minDistance = 120;
@@ -782,12 +978,15 @@ function ensurePanelExtraStyles() {
       gap: 0.4rem;
       font-size: 14px;
       line-height: 1.5;
+      min-width: 0;
     }
+
     .panel-text p {
       margin: 0 0 0.4rem;
       word-break: break-word;
       overflow-wrap: break-word;
     }
+
     .panel-section-title {
       margin: 0.9rem 0 0.35rem;
       font-size: 15px;
@@ -795,42 +994,80 @@ function ensurePanelExtraStyles() {
       letter-spacing: 0.08em;
       opacity: 0.9;
     }
-    .panel-header-main{
+
+    /* Make header robust on small widths */
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;     /* KEY: allow wrapping */
+      min-width: 0;
+    }
+
+    .panel-header-main {
       display: flex;
       align-items: center;
-      gap: 10 px
+      gap: 10px;          /* fixed invalid "10 px" */
+      min-width: 0;
+      flex: 1 1 auto;
     }
-    .panel-back-btn{
-      border: 1px solid rgba(148,163,184,0.7);
 
+    .panel-header-main > div {
+      min-width: 0;       /* allow title to wrap */
+    }
+
+    .panel-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      flex-wrap: wrap;     /* KEY: prevent overflow */
+      justify-content: flex-end;
+    }
+
+    .panel-back-btn {
+      border: 1px solid rgba(148,163,184,0.7);
       padding: 4px 9px;
       border-radius: 999px;
       transform: translateX(-10px);
       background: rgba(15,23,42,0.95);
       color: #e5e7eb;
       cursor: pointer;
-      font-size: 13 px;
+      font-size: 13px;     /* fixed invalid "13 px" */
       display: inline-flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
+      flex: 0 0 auto;
     }
+
     .panel-back-btn:hover {
       background: rgba(37, 64, 175, 0.95);
       border-color: rgba(191, 219, 254, 0.95);
     }
+
     .panel-experiences {
       list-style: none;
       padding: 0;
       margin: 0 0 0.5rem;
     }
+
     .panel-experiences li {
       margin-bottom: 0.45rem;
     }
+
     .panel-experiences .exp-title {
       font-weight: 500;
       margin-bottom: 2px;
     }
+
     .panel-experiences .exp-desc {
       font-size: 13px;
       opacity: 0.85;
@@ -842,6 +1079,7 @@ function ensurePanelExtraStyles() {
       gap: 6px;
       margin: 0.6rem 0 0.4rem;
     }
+
     .tag-pill {
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.6);
@@ -853,16 +1091,10 @@ function ensurePanelExtraStyles() {
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
+
     .tag-pill.active {
       background: rgba(37, 99, 235, 0.9);
       border-color: rgba(191, 219, 254, 0.9);
-    }
-
-    .panel-header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
     }
 
     .fav-btn {
@@ -874,7 +1106,9 @@ function ensurePanelExtraStyles() {
       background: rgba(15,23,42,0.9);
       color: #e5e7eb;
       border: 1px solid rgba(148,163,184,0.75);
+      white-space: nowrap;
     }
+
     .fav-btn.fav-on {
       background: #facc15;
       color: #1f2937;
@@ -890,7 +1124,9 @@ function ensurePanelExtraStyles() {
       background: rgba(15,23,42,0.9);
       color: #e5e7eb;
       border: 1px solid rgba(59,130,246,0.85);
+      white-space: nowrap;
     }
+
     .trip-btn.in-trip {
       background: rgba(34,197,94,0.18);
       color: #bbf7d0;
@@ -903,6 +1139,7 @@ function ensurePanelExtraStyles() {
       gap: 4px;
       margin-top: 4px;
     }
+
     .panel-photo {
       position: relative;
       padding-top: 60%;
@@ -910,6 +1147,7 @@ function ensurePanelExtraStyles() {
       border-radius: 4px;
       background: #020617;
     }
+
     .panel-photo img {
       position: absolute;
       inset: 0;
@@ -920,6 +1158,7 @@ function ensurePanelExtraStyles() {
       filter: brightness(1.05);
       transition: transform 0.25s ease, filter 0.25s ease;
     }
+
     .panel-photo img:hover {
       transform: scale(1.04);
       filter: brightness(1.2);
@@ -933,6 +1172,7 @@ function ensurePanelExtraStyles() {
       background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.95));
       font-size: 12px;
     }
+
     .weather-label {
       text-transform: uppercase;
       letter-spacing: 0.12em;
@@ -940,36 +1180,44 @@ function ensurePanelExtraStyles() {
       opacity: 0.8;
       margin-bottom: 2px;
     }
+
     .weather-main {
       display: flex;
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
     }
+
     .weather-icon {
       width: 28px;
       height: 28px;
       flex-shrink: 0;
     }
+
     .weather-icon img {
       display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
     }
+
     .weather-body {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       align-items: baseline;
+      min-width: 0;
     }
+
     .weather-temp {
       font-size: 15px;
       font-weight: 600;
     }
+
     .weather-desc {
       opacity: 0.9;
     }
+
     .weather-meta {
       font-size: 11px;
       opacity: 0.8;
@@ -983,6 +1231,7 @@ function ensurePanelExtraStyles() {
       padding: 0;
       list-style: none;
     }
+
     .country-city-btn {
       border-radius: 999px;
       border: 1px solid rgba(148,163,184,0.7);
@@ -994,20 +1243,25 @@ function ensurePanelExtraStyles() {
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      max-width: 100%;
     }
+
     .country-city-btn:hover {
       background: rgba(37, 99, 235, 0.9);
       border-color: rgba(191, 219, 254, 0.95);
     }
+
     .country-city-badge {
       font-size: 10px;
       opacity: 0.8;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      white-space: nowrap;
     }
   `;
   document.head.appendChild(style);
 }
+
 
 /* ---------- panel content renderer ---------- */
 
@@ -1252,6 +1506,11 @@ function resetCountrySelection() {
   showCountryTooltip(null);
   setSelectedCity(null);
 
+
+  // clear country-level filter state
+  countryFilterCountry = null;
+  activeCountryFilters.clear();
+
   // hide all city markers and stop their animations
   if (cityAppearAnimations) {
     cityAppearAnimations.clear();
@@ -1427,16 +1686,139 @@ function openCityPanel(city) {
 
 /* ---------- COUNTRY PANEL ---------- */
 
+/* ---------- COUNTRY FILTERING (CITY DOT VISIBILITY) ---------- */
+
+function getCityTags(city) {
+  return Array.isArray(city?.tags) ? city.tags : [];
+}
+
+function cityMatchesAnyActiveFilter(city) {
+  if (!activeCountryFilters || activeCountryFilters.size === 0) return true; // "All"
+  const tags = getCityTags(city);
+  for (const f of activeCountryFilters) {
+    if (tags.includes(f)) return true;
+  }
+  return false;
+}
+
+function getCitiesInCountryByName(countryName) {
+  const countryNorm = normalizeCountryName(countryName);
+  return allCities.filter(c => normalizeCountryName(c.country) === countryNorm);
+}
+
+/**
+ * Visible cities for the active country:
+ * - if no filters: all cities in that country (current behavior)
+ * - if filters: show cities that match ANY selected filter
+ * - always keep favorites + selected city visible if they belong to the country
+ */
+function getVisibleCitiesForCountryName(countryName) {
+  const allInCountry = getCitiesInCountryByName(countryName);
+
+  let visible = allInCountry;
+  if (activeCountryFilters && activeCountryFilters.size > 0) {
+    visible = allInCountry.filter(cityMatchesAnyActiveFilter);
+
+    // Always keep favorites visible (within the country)
+    const favExtra = allInCountry.filter(c => isFavorite(c));
+    const merged = new Map();
+    [...visible, ...favExtra].forEach(c => merged.set(makeCityKey(c), c));
+
+    // Always keep selected city visible (within the country)
+    if (selectedCityKey) {
+      const sel = allInCountry.find(c => makeCityKey(c) === selectedCityKey);
+      if (sel) merged.set(makeCityKey(sel), sel);
+    }
+
+    visible = [...merged.values()];
+  }
+
+  return { allInCountry, visible };
+}
+
+function renderCountryCityList(countryName) {
+  const listEl = panelInnerEl.querySelector('#country-city-list');
+  const countEl = panelInnerEl.querySelector('#country-city-count');
+  if (!listEl) return;
+
+  const { allInCountry, visible } = getVisibleCitiesForCountryName(countryName);
+
+  if (countEl) {
+    if (!allInCountry.length) {
+      countEl.textContent = '';
+    } else if (!activeCountryFilters.size) {
+      countEl.textContent = `Showing ${visible.length} cities`;
+    } else {
+      countEl.textContent = `Showing ${visible.length} of ${allInCountry.length} cities`;
+    }
+  }
+
+  if (!visible.length) {
+    listEl.innerHTML = `<li><p class="muted" style="margin:0.3rem 0 0;">No cities match these filters.</p></li>`;
+    return;
+  }
+
+  listEl.innerHTML = visible.map(c => `
+    <li>
+      <button
+        class="country-city-btn"
+        data-city="${c.name}"
+        data-country="${c.country}"
+        type="button"
+      >
+        <span>${c.name}</span>
+        <span class="country-city-badge">Open city</span>
+      </button>
+    </li>
+  `).join('');
+}
+
+function syncCountryFilterUI() {
+  const row = panelInnerEl.querySelector('#country-filter-row');
+  if (!row) return;
+  row.querySelectorAll('.tag-pill').forEach(btn => {
+    const id = btn.getAttribute('data-filter') || 'all';
+    const active =
+      (id === 'all' && activeCountryFilters.size === 0) ||
+      (id !== 'all' && activeCountryFilters.has(id));
+    btn.classList.toggle('active', active);
+  });
+}
+
+/**
+ * Apply country filters to both:
+ * - visible city markers on the globe
+ * - the city list in the country panel
+ */
+function applyCountryFilters(countryFeature) {
+  if (!countryFeature) return;
+  const countryName = countryFeature.properties?.name || 'Country';
+
+  // Update markers on the globe
+  revealCountryCitiesWithAnimation(countryFeature);
+
+  // Update the country panel list/count if it's open
+  if (panelEl && panelEl.classList.contains('open')) {
+    renderCountryCityList(countryName);
+    syncCountryFilterUI();
+  }
+}
+
 function openCountryPanel(countryFeature) {
   ensurePanelExtraStyles();
   currentTag = 'all';
 
   const countryName = countryFeature.properties?.name || 'Country';
+
+  // Reset filters only when switching to a different country
+  if (countryFilterCountry !== countryName) {
+    countryFilterCountry = countryName;
+    activeCountryFilters.clear();
+  }
+
   const info = COUNTRY_INFO[countryName] || {
     summary: `${countryName} is one of the European countries in this globe.`
   };
-
-  const citiesInCountry = allCities.filter(c => c.country === countryName);
 
   panelInnerEl.innerHTML = `
     <div class="panel-header">
@@ -1451,28 +1833,23 @@ function openCountryPanel(countryFeature) {
     <div class="panel-text">
       <p>${info.summary}</p>
 
-      ${
-        citiesInCountry.length
-          ? `
-            <h3 class="panel-section-title">Cities in ${countryName}</h3>
-            <ul class="country-city-list">
-              ${citiesInCountry.map(c => `
-                <li>
-                  <button
-                    class="country-city-btn"
-                    data-city="${c.name}"
-                    data-country="${c.country}"
-                    type="button"
-                  >
-                    <span>${c.name}</span>
-                    <span class="country-city-badge">Open city</span>
-                  </button>
-                </li>
-              `).join('')}
-            </ul>
-          `
-          : `<p>No cities configured for this country yet.</p>`
-      }
+      <h3 class="panel-section-title">Filters</h3>
+      <div class="tag-row" id="country-filter-row">
+        ${COUNTRY_FILTER_DEFS.map(f => `
+          <button
+            class="tag-pill"
+            data-filter="${f.id}"
+            type="button"
+          >
+            ${f.label}
+          </button>
+        `).join('')}
+      </div>
+
+      <p class="muted" id="country-city-count" style="margin:0 0 0.35rem;"></p>
+
+      <h3 class="panel-section-title">Cities in ${countryName}</h3>
+      <ul class="country-city-list" id="country-city-list"></ul>
     </div>
   `;
 
@@ -1481,8 +1858,31 @@ function openCountryPanel(countryFeature) {
   // shared close handler → reset + fly home
   wirePanelCloseWithFlyHome();
 
-  // "Open city" buttons
-  const listEl = panelInnerEl.querySelector('.country-city-list');
+  // Filter clicks (delegated)
+  const filterRow = panelInnerEl.querySelector('#country-filter-row');
+  if (filterRow) {
+    filterRow.addEventListener('click', ev => {
+      const btn = ev.target.closest('.tag-pill');
+      if (!btn) return;
+      const id = btn.getAttribute('data-filter') || 'all';
+
+      if (id === 'all') {
+        activeCountryFilters.clear();
+      } else {
+        if (activeCountryFilters.has(id)) {
+          activeCountryFilters.delete(id);
+        } else {
+          activeCountryFilters.add(id);
+        }
+      }
+
+      // Apply to globe + list
+      applyCountryFilters(countryFeature);
+    });
+  }
+
+  // "Open city" buttons (delegated)
+  const listEl = panelInnerEl.querySelector('#country-city-list');
   if (listEl) {
     listEl.addEventListener('click', ev => {
       const btn = ev.target.closest('.country-city-btn');
@@ -1497,6 +1897,13 @@ function openCountryPanel(countryFeature) {
       }
     });
   }
+
+  // Initial render + sync UI
+  renderCountryCityList(countryName);
+  syncCountryFilterUI();
+
+  // Ensure markers match current filters
+  applyCountryFilters(countryFeature);
 }
 
 /* ---------- sizing ---------- */
@@ -1510,6 +1917,7 @@ function syncSize() {
 }
 new ResizeObserver(syncSize).observe(appEl);
 window.addEventListener('resize', syncSize);
+positionTripTray();
 syncSize();
 
 /* ---------- COUNTRY LAYER ---------- */
@@ -1772,6 +2180,71 @@ function worldToLatLng(world) {
 
 const tripPlan = [];
 
+// positions tray so it is bottom-center BUT avoids:
+// - the right panel (when open)
+// - the bottom-left hint pill (#globe-instructions)
+function positionTripTray() {
+  if (!tripTrayEl) return;
+
+  const MARGIN = 18;
+  const GAP_TO_PANEL = 14;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Default safe horizontal bounds
+  let leftLimit = MARGIN;
+  let rightLimit = vw - MARGIN;
+
+  // If the side panel is open, don't let tray overlap it
+  const panelOpen = panelEl && panelEl.classList.contains('open');
+  if (panelOpen) {
+    const pr = panelEl.getBoundingClientRect();
+    rightLimit = Math.min(rightLimit, pr.left - GAP_TO_PANEL);
+  }
+
+  // Max width we are allowed to use
+  let maxW = Math.min(720, rightLimit - leftLimit);
+  maxW = Math.max(280, maxW); // keep it usable
+
+  // Clamp tray center so it fits
+  const desiredCenter = vw / 2;
+  const minCenter = leftLimit + maxW / 2;
+  const maxCenter = rightLimit - maxW / 2;
+  const centerX = Math.min(Math.max(desiredCenter, minCenter), maxCenter);
+
+  // Apply layout to your existing tray element
+  tripTrayEl.style.left = `${centerX}px`;
+  tripTrayEl.style.transform = 'translateX(-50%)';
+  tripTrayEl.style.maxWidth = `${maxW}px`;
+
+  // Base bottom
+  let bottomPx = 18;
+  tripTrayEl.style.bottom = `${bottomPx}px`;
+
+  // If tray isn't open, don't bother resolving overlaps
+  if (!tripTrayEl.classList.contains('open')) return;
+
+  // Next frame: measure actual tray + hint and avoid overlap precisely
+  requestAnimationFrame(() => {
+    const hint = document.getElementById('globe-instructions');
+    if (!hint) return;
+
+    const trayRect = tripTrayEl.getBoundingClientRect();
+    const hintRect = hint.getBoundingClientRect();
+
+    const overlapsX = !(trayRect.right < hintRect.left || trayRect.left > hintRect.right);
+    const overlapsY = !(trayRect.bottom < hintRect.top || trayRect.top > hintRect.bottom);
+
+    if (overlapsX && overlapsY) {
+      // raise tray just enough so it clears the hint
+      const needed = (trayRect.bottom - hintRect.top) + 10;
+      bottomPx = Math.min(vh - 80, bottomPx + needed); // cap so it doesn't go crazy
+      tripTrayEl.style.bottom = `${bottomPx}px`;
+    }
+  });
+}
+
 function cityInTrip(city) {
   const key = makeCityKey(city);
   return tripPlan.some(c => makeCityKey(c) === key);
@@ -1780,11 +2253,9 @@ function cityInTrip(city) {
 function toggleCityInTrip(city) {
   const key = makeCityKey(city);
   const idx = tripPlan.findIndex(c => makeCityKey(c) === key);
-  if (idx === -1) {
-    tripPlan.push(city);
-  } else {
-    tripPlan.splice(idx, 1);
-  }
+  if (idx === -1) tripPlan.push(city);
+  else tripPlan.splice(idx, 1);
+
   recomputeTripUIAndArcs();
 }
 
@@ -1824,7 +2295,6 @@ function recomputeTripStats() {
     tripStatsEl.textContent = 'Open a city panel and add it to your trip.';
     return;
   }
-
   if (tripPlan.length === 1) {
     tripStatsEl.textContent = 'Select another city to see route.';
     return;
@@ -1887,10 +2357,10 @@ function renderTripList() {
     li.dataset.key = makeCityKey(city);
     li.innerHTML = `
       <span class="trip-index">${idx + 1}</span>
-      <div class="trip-main">
+      <span class="trip-main">
         <span class="city">${city.name}</span>
         <span class="country">${city.country}</span>
-      </div>
+      </span>
       <button class="trip-remove" type="button" title="Remove">×</button>
     `;
     tripStopsEl.appendChild(li);
@@ -1905,13 +2375,16 @@ function recomputeTripUIAndArcs() {
     if (tripStopsEl) tripStopsEl.innerHTML = '';
     globe.arcsData([]);
     recomputeTripStats();
+    positionTripTray();
     return;
   }
 
   renderTripList();
   recomputeTripStats();
   recomputeTripArcs();
+
   tripTrayEl.classList.add('open');
+  positionTripTray();
 }
 
 // Trip tray interactions
@@ -1926,6 +2399,7 @@ if (tripStopsEl) {
   tripStopsEl.addEventListener('click', ev => {
     const li = ev.target.closest('li.trip-stop');
     if (!li) return;
+
     const key = li.dataset.key;
     const idx = tripPlan.findIndex(c => makeCityKey(c) === key);
     if (idx === -1) return;
@@ -2082,18 +2556,23 @@ function revealCountryCitiesWithAnimation(countryFeature) {
   const countryNorm = normalizeCountryName(countryName);
   if (!countryName) return;
 
-  const citiesInCountry = allCities.filter(c => normalizeCountryName(c.country) === countryNorm);
+  const { allInCountry, visible } = getVisibleCitiesForCountryName(countryName);
 
+  const visibleKeys = new Set(visible.map(makeCityKey));
+
+  // Hide everything that's not part of this country OR filtered out
   for (const [key, sprite] of cityMarkers.entries()) {
     const city = sprite.userData.city;
-    const inCountry = city && city.country === countryName;
-    if (!inCountry) {
+    const inCountry = city && normalizeCountryName(city.country) === countryNorm;
+
+    if (!inCountry || !visibleKeys.has(key)) {
       sprite.visible = false;
       cityAppearAnimations.delete(key);
     }
   }
 
-  citiesInCountry.forEach((city, idx) => {
+  // Show/animate visible cities
+  visible.forEach((city, idx) => {
     const key = makeCityKey(city);
     const sprite = cityMarkers.get(key);
     if (!sprite) return;
@@ -2184,9 +2663,49 @@ function pickCityUnderPointer() {
   }
   return null;
 }
+// --- prevent "click" from firing after a drag-rotate ---
+const CLICK_MOVE_THRESHOLD_PX = 8;               // tweak if needed
+const CLICK_MOVE_THRESHOLD_PX2 = CLICK_MOVE_THRESHOLD_PX * CLICK_MOVE_THRESHOLD_PX;
+
+let pointerDownPos = null;
+let didDragMove = false;
+let suppressClicksUntil = 0;
+
+renderer.domElement.addEventListener('pointerdown', (ev) => {
+  // only left mouse / primary pointer
+  if (ev.button !== undefined && ev.button !== 0) return;
+
+  pointerDownPos = { x: ev.clientX, y: ev.clientY };
+  didDragMove = false;
+}, { passive: true });
+
+renderer.domElement.addEventListener('pointermove', (ev) => {
+  if (!pointerDownPos) return;
+
+  const dx = ev.clientX - pointerDownPos.x;
+  const dy = ev.clientY - pointerDownPos.y;
+
+  if ((dx * dx + dy * dy) > CLICK_MOVE_THRESHOLD_PX2) {
+    didDragMove = true;
+  }
+}, { passive: true });
+
+// use window so we still catch the release even if the pointer leaves the canvas
+window.addEventListener('pointerup', () => {
+  if (!pointerDownPos) return;
+
+  if (didDragMove) {
+    // block the click that happens right after a drag ends
+    suppressClicksUntil = performance.now() + 250; // ms
+  }
+
+  pointerDownPos = null;
+  didDragMove = false;
+}, { passive: true });
 
 // CLICK: cities are now clickable when a country is active
 renderer.domElement.addEventListener('click', ev => {
+  if (performance.now() < suppressClicksUntil) return;
   setFromEvent(ev);
 
   // if we have an active country, try clicking a city first
@@ -2306,6 +2825,6 @@ renderer.domElement.addEventListener('mouseleave', () => {
   } catch (e) {
     if (!fatalEl?.classList.contains('show')) fatal(e);
   } finally {
-    if (loadingOverlayEl) loadingOverlayEl.classList.add('hidden');
+    showStartGate();
   }
 })();
