@@ -1258,6 +1258,14 @@ function ensurePanelExtraStyles() {
       letter-spacing: 0.08em;
       white-space: nowrap;
     }
+      .city-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0.35rem 0 0.55rem;
+}
+
+
   `;
   document.head.appendChild(style);
 }
@@ -1544,68 +1552,76 @@ function openCityPanel(city) {
   const fav = isFavorite(city);
   const inTrip = cityInTrip(city);
 
-  panelInnerEl.innerHTML = `
-    <div class="panel-header">
-      <div class="panel-header-main">
-        <button
-          class="panel-back-btn"
-          id="back-btn"
-          type="button"
-          aria-label="Back to country"
-        >
-          ←
-        </button>
-        <div>
-          <h2 class="panel-title">${city.name}, ${city.country}</h2>
-          <p class="muted">Population ${city.pop ?? ''}</p>
-        </div>
-      </div>
-      <div class="panel-header-actions">
-        <button
-          class="fav-btn ${fav ? 'fav-on' : ''}"
-          id="fav-btn"
-          type="button"
-          aria-pressed="${fav}"
-        >
-          ${fav ? '★ Saved' : '☆ Save'}
-        </button>
-        <button
-          class="trip-btn ${inTrip ? 'in-trip' : ''}"
-          id="trip-btn"
-          type="button"
-          aria-pressed="${inTrip}"
-        >
-          ${inTrip ? '✓ In trip' : '+ Add to trip'}
-        </button>
-        <button class="close-btn" id="close-btn" type="button">Close</button>
+panelInnerEl.innerHTML = `
+  <div class="panel-header">
+    <div class="panel-header-main">
+      <button
+        class="panel-back-btn"
+        id="back-btn"
+        type="button"
+        aria-label="Back to country"
+      >
+        ←
+      </button>
+      <div>
+        <h2 class="panel-title">${city.name}, ${city.country}</h2>
+        <p class="muted">Population ${city.pop ?? ''}</p>
       </div>
     </div>
-    <div class="panel-text">
-      <p>${city.summary || `${city.name} is a great starting point for exploring ${city.country}.`}</p>
 
-      <div id="weather-block" class="weather-block">
-        <div class="weather-label">Current weather</div>
-        <div class="weather-main">
-          <div class="weather-icon" aria-hidden="true"></div>
-          <div class="weather-body">Loading...</div>
-        </div>
-      </div>
-
-      <div class="tag-row">
-        ${TAG_DEFS.map(t => `
-          <button
-            class="tag-pill ${t.id === currentTag ? 'active' : ''}"
-            data-tag="${t.id}"
-            type="button"
-          >
-            ${t.label}
-          </button>
-        `).join('')}
-      </div>
-
-      <div id="panel-content"></div>
+    <!-- Close in the SAME top-right place as country panel -->
+    <div class="panel-header-actions">
+      <button class="close-btn" id="close-btn" type="button">Close ×</button>
     </div>
-  `;
+  </div>
+
+  <div class="panel-text">
+    <p>${city.summary || `${city.name} is a great starting point for exploring ${city.country}.`}</p>
+
+    <!-- Move Save + Trip below header so Close stays top-right -->
+    <div class="city-actions-row">
+      <button
+        class="fav-btn ${fav ? 'fav-on' : ''}"
+        id="fav-btn"
+        type="button"
+        aria-pressed="${fav}"
+      >
+        ${fav ? '★ Saved' : '☆ Save'}
+      </button>
+
+      <button
+        class="trip-btn ${inTrip ? 'in-trip' : ''}"
+        id="trip-btn"
+        type="button"
+        aria-pressed="${inTrip}"
+      >
+        ${inTrip ? '✓ In trip' : '+ Add to trip'}
+      </button>
+    </div>
+
+    <div id="weather-block" class="weather-block">
+      <div class="weather-label">Current weather</div>
+      <div class="weather-main">
+        <div class="weather-icon" aria-hidden="true"></div>
+        <div class="weather-body">Loading...</div>
+      </div>
+    </div>
+
+    <div class="tag-row">
+      ${TAG_DEFS.map(t => `
+        <button
+          class="tag-pill ${t.id === currentTag ? 'active' : ''}"
+          data-tag="${t.id}"
+          type="button"
+        >
+          ${t.label}
+        </button>
+      `).join('')}
+    </div>
+
+    <div id="panel-content"></div>
+  </div>
+`;
 
   panelEl.classList.add('open');
 
@@ -1820,38 +1836,44 @@ function openCountryPanel(countryFeature) {
     summary: `${countryName} is one of the European countries in this globe.`
   };
 
-  panelInnerEl.innerHTML = `
-    <div class="panel-header">
+panelInnerEl.innerHTML = `
+  <div class="panel-header">
+    <div class="panel-header-main">
       <div>
         <h2 class="panel-title">${countryName}</h2>
         <p class="muted">Prototype country in this Travel Globe.</p>
       </div>
-      <div class="panel-header-actions">
-        <button class="close-btn" id="close-btn" type="button">Close</button>
-      </div>
     </div>
-    <div class="panel-text">
-      <p>${info.summary}</p>
 
-      <h3 class="panel-section-title">Filters</h3>
-      <div class="tag-row" id="country-filter-row">
-        ${COUNTRY_FILTER_DEFS.map(f => `
-          <button
-            class="tag-pill"
-            data-filter="${f.id}"
-            type="button"
-          >
-            ${f.label}
-          </button>
-        `).join('')}
-      </div>
-
-      <p class="muted" id="country-city-count" style="margin:0 0 0.35rem;"></p>
-
-      <h3 class="panel-section-title">Cities in ${countryName}</h3>
-      <ul class="country-city-list" id="country-city-list"></ul>
+    <!-- Top-right close, matching city -->
+    <div class="panel-header-actions">
+      <button class="close-btn" id="close-btn" type="button">Close ×</button>
     </div>
-  `;
+  </div>
+
+  <div class="panel-text">
+    <p>${info.summary}</p>
+
+    <h3 class="panel-section-title">Filters</h3>
+    <div class="tag-row" id="country-filter-row">
+      ${COUNTRY_FILTER_DEFS.map(f => `
+        <button
+          class="tag-pill"
+          data-filter="${f.id}"
+          type="button"
+        >
+          ${f.label}
+        </button>
+      `).join('')}
+    </div>
+
+    <p class="muted" id="country-city-count" style="margin:0 0 0.35rem;"></p>
+
+    <h3 class="panel-section-title">Cities in ${countryName}</h3>
+    <ul class="country-city-list" id="country-city-list"></ul>
+  </div>
+`;
+
 
   panelEl.classList.add('open');
 
