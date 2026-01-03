@@ -230,6 +230,28 @@
       flex-direction: column;
       gap: 8px;
     }
+    #journal-open {
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    background: rgba(15, 23, 42, 0.55);
+    color: rgba(191, 219, 254, 0.95);
+
+    border-radius: 999px;
+    padding: 6px 10px;
+
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  #journal-open:hover {
+    background: rgba(37, 99, 235, 0.22);
+    border-color: rgba(191, 219, 254, 0.95);
+    color: #dbeafe;
+  }
+
 
     .search-bar {
       display: flex;
@@ -496,6 +518,21 @@
     }
     #trip-clear:hover { color: #fecaca; }
 
+  #trip-journal {
+  border: 0;
+  background: transparent;
+  color: rgba(191,219,254,0.95);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  padding: 4px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+#trip-journal:hover { color: #dbeafe; }
+
+
     /* Small screens */
     @media (max-width: 900px) {
       #panel {
@@ -530,20 +567,23 @@
   <div id="app">
     <canvas id="stage"></canvas>
 
-    <!-- Search -->
-    <div id="search-wrap">
-      <div class="search-bar">
-        <span class="search-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M10 2a8 8 0 105.293 14.293l4.707 4.707a1 1 0 001.414-1.414l-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/>
-          </svg>
-        </span>
-        <input id="search-input" type="text" placeholder="Search" autocomplete="off" />
-      </div>
+<!-- Search -->
+<div id="search-wrap">
+  <div class="search-bar">
+    <span class="search-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M10 2a8 8 0 105.293 14.293l4.707 4.707a1 1 0 001.414-1.414l-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/>
+      </svg>
+    </span>
+    <input id="search-input" type="text" placeholder="Search" autocomplete="off" />
+  </div>
 
-      <ul id="search-results"></ul>
-      <div id="favorites-bar"></div>
-    </div>
+  <!-- Journal button (NOT inside the search bar) -->
+  <button id="journal-open" type="button" title="Open Journal">Journal</button>
+
+  <ul id="search-results"></ul>
+  <div id="favorites-bar"></div>
+</div>
 
     <!-- Tooltip -->
     <div id="tooltip"></div>
@@ -560,15 +600,18 @@
       </div>
     </aside>
 
-    <!-- Trip Tray -->
-    <div id="trip-tray" aria-live="polite">
-      <div id="trip-summary">
-        <div id="trip-title">Trip plan</div>
-        <div id="trip-stats">Open a city panel and add it to your trip.</div>
-      </div>
-      <ol id="trip-stops"></ol>
-      <button id="trip-clear" type="button" title="Clear trip">Clear</button>
+  <!-- Trip Tray -->
+  <div id="trip-tray" aria-live="polite">
+    <div id="trip-summary">
+      <div id="trip-title">Trip plan</div>
+      <div id="trip-stats">Open a city panel and add it to your trip.</div>
     </div>
+    <ol id="trip-stops"></ol>
+
+    <button id="trip-journal" type="button" title="Open journal">Add to Journal</button>
+    <button id="trip-clear" type="button" title="Clear trip">Clear</button>
+  </div>
+
 
     <!-- Fatal -->
     <div id="fatal"></div>

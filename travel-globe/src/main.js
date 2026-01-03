@@ -18,6 +18,8 @@ const tooltipEl =
 // search UI
 const searchInput = document.getElementById('search-input');
 const searchList = document.getElementById('search-results');
+const journalOpenBtn = document.getElementById('journal-open');
+
 // favorites bar
 const favBarEl = document.getElementById('favorites-bar');
 
@@ -26,6 +28,8 @@ const tripTrayEl = document.getElementById('trip-tray');
 const tripStopsEl = document.getElementById('trip-stops');
 const tripStatsEl = document.getElementById('trip-stats');
 const tripClearBtn = document.getElementById('trip-clear');
+const tripJournalBtn = document.getElementById('trip-journal');
+
 
 /* ---------- global overlays (instructions + loading) ---------- */
 
@@ -119,82 +123,138 @@ function ensureGlobalOverlays() {
       }
     }
           /* --- Start gate additions --- */
-    #loading-overlay .hero {
-      text-align: center;
-      max-width: 520px;
-      padding: 0 18px;
-      line-height: 1.35;
-    }
+/* Make the overlay feel more "designed" */
+#loading-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(59,130,246,0.20), transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(168,85,247,0.16), transparent 48%),
+    radial-gradient(circle at 40% 85%, rgba(56,189,248,0.12), transparent 55%);
+  filter: blur(10px);
+  opacity: 0.9;
+  animation: gateGlow 6s ease-in-out infinite alternate;
+  pointer-events: none;
+}
 
-    #loading-overlay .hero .tagline {
-      font-size: 14px;
-      letter-spacing: 0.02em;
-      opacity: 0.92;
-    }
+@keyframes gateGlow {
+  from { transform: translateY(-6px) scale(1.02); opacity: 0.75; }
+  to   { transform: translateY(6px) scale(1.06);  opacity: 0.95; }
+}
 
-    #loading-overlay .hero .brand {
-      display: inline-block;
-      margin-left: 6px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
+#loading-overlay .loading-inner {
+  position: relative; /* keeps content above ::before */
+  z-index: 1;
+}
 
-    #start-btn {
-      border: 1px solid rgba(148, 163, 184, 0.75);
-      background: rgba(11, 29, 74, 0.92);
-      color: #e5e7eb;
-      padding: 10px 16px;
-      border-radius: 999px;
-      cursor: pointer;
-      font: 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-            Roboto, Helvetica, Arial, sans-serif;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      backdrop-filter: blur(10px);
-      transform: translateY(2px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
-    }
+/* How-it-works cards */
+#loading-overlay .how {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    #start-btn:hover {
-      background: rgba(37, 99, 235, 0.30);
-      transform: translateY(0px);
-    }
+#loading-overlay .how-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
 
-    /* When app is ready, hide loader + show start button */
-    #loading-overlay.ready .loader,
-    #loading-overlay.ready .loading-label {
-      display: none;
-    }
+#loading-overlay .how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
 
-    #loading-overlay.ready #start-btn {
-      opacity: 1;
-      pointer-events: auto;
-    }
+#loading-overlay .how-card {
+  border: 1px solid rgba(148,163,184,0.28);
+  background: rgba(2, 6, 23, 0.25);
+  border-radius: 14px;
+  padding: 10px 10px;
+  text-align: left;
+}
+
+#loading-overlay .how-kicker {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(191,219,254,0.5);
+  background: rgba(37,99,235,0.18);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+#loading-overlay .how-text {
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+#loading-overlay .start-stats {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+#loading-overlay .start-hint {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+@media (max-width: 560px) {
+  #loading-overlay .how-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
   `;
   document.head.appendChild(style);
 
   const loading = document.createElement('div');
   loading.id = 'loading-overlay';
-  loading.innerHTML = `
-    <div class="loading-inner">
-      <div class="loader"></div>
-      <div class="loading-label">Loading…</div>
+loading.innerHTML = `
+  <div class="loading-inner">
+    <div class="loader"></div>
+    <div class="loading-label">Loading…</div>
 
-      <div class="hero">
-        <div class="tagline">
-          Start planning your vacation with
-          <span class="brand">A Whole New World</span>
-        </div>
+    <div class="hero">
+      <div class="tagline">
+        Start planning your vacation with
+        <span class="brand">A Whole New World</span>
       </div>
 
-      <button id="start-btn" type="button" disabled>Start</button>
+      <div class="how">
+        <div class="how-title">How it works</div>
+        <div class="how-grid">
+          <div class="how-card">
+            <div class="how-kicker">1</div>
+            <div class="how-text">Click a country to reveal cities.</div>
+          </div>
+          <div class="how-card">
+            <div class="how-kicker">2</div>
+            <div class="how-text">Pick a city to see highlights + weather.</div>
+          </div>
+          <div class="how-card">
+            <div class="how-kicker">3</div>
+            <div class="how-text">Save cities and build your trip.</div>
+          </div>
+        </div>
+
+        <div class="start-stats" id="start-stats">Preparing your globe…</div>
+      </div>
     </div>
-  `;
+
+    <button id="start-btn" type="button" disabled>Start exploring</button>
+  </div>
+`;
+
 
   document.body.appendChild(loading);
 
@@ -216,6 +276,17 @@ function showStartGate() {
   if (!btn) return;
 
   btn.disabled = false;
+
+  // Step (3): update the start screen stats line
+  const statsEl = overlay.querySelector('#start-stats');
+  if (statsEl && Array.isArray(allCities) && allCities.length) {
+    const countryCount = new Set(allCities.map(c => c.country)).size;
+    statsEl.textContent = `${allCities.length} cities · ${countryCount} countries · Live weather`;
+  }
+
+  overlay.classList.add('show-start');
+
+  // Keep these INSIDE the function:
   btn.focus();
 
   const enterApp = () => overlay.classList.add('hidden');
@@ -233,6 +304,7 @@ function showStartGate() {
     { once: true }
   );
 }
+
 
 
 /* ---------- TAGS + CITY MEDIA ---------- */
@@ -715,6 +787,7 @@ controls.minDistance = 120;
 controls.maxDistance = 500;
 controls.enablePan = false;
 
+
 // store the “home” view for fly-back animation
 const INITIAL_CAMERA_POS = camera.position.clone();
 const INITIAL_CAMERA_TARGET = controls.target.clone();
@@ -844,16 +917,27 @@ function updateAutoRotate(dtSec) {
 
 const markerTextures = {};         // { normal: Texture, fav: Texture, selected: Texture }
 const cityMarkers = new Map();     // key -> THREE.Sprite
+const cityGroups = new Map();
 
 const NORMAL_COLOR   = '#ffd977';    // yellow
 const FAV_COLOR      = '#eb2020ff';  // red
 const SELECTED_COLOR = '#2ef138ff';    // soft indigo for active city
 
+const MARKER_OPACITY ={
+  normal : 0.72,
+  fav : 0.88,
+  selected : 1.0
+}
+
+function getMarkerOpacity(kind) {
+  return MARKER_OPACITY[kind] || 0.72;
+}
+
 // which city is currently selected (for panel / fly-to)
 let selectedCityKey = null;
 
 // base scale for city markers (we animate up to this size)
-const CITY_MARKER_BASE_SCALE = GLOBE_R * 0.012;
+const CITY_MARKER_BASE_SCALE = GLOBE_R * 0.005;
 
 function makeRingTexture(colorHex) {
   const size = 128;
@@ -916,10 +1000,13 @@ function createCityMarkerSprite(city) {
   const kind = getMarkerKind(city);
   const tex = getMarkerTexture(kind);
   const mat = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: true
-  });
+  map: tex,
+  transparent: true,
+  opacity: getMarkerOpacity(kind),
+  depthWrite: false,   // important: don't "block" other transparent markers
+  depthTest: true
+});
+
   const sprite = new THREE.Sprite(mat);
   sprite.userData.city = city;
   sprite.userData.baseScale = CITY_MARKER_BASE_SCALE;
@@ -935,10 +1022,15 @@ function updateCityMarker(city) {
   const key = makeCityKey(city);
   const sprite = cityMarkers.get(key);
   if (!sprite) return;
+
   const kind = getMarkerKind(city);
   sprite.material.map = getMarkerTexture(kind);
+  sprite.material.opacity = getMarkerOpacity(kind);
+  sprite.material.depthWrite = false; // keep consistent even after updates
+  sprite.material.transparent = true;
   sprite.material.needsUpdate = true;
 }
+
 
 // set the selected city → adjust textures
 function setSelectedCity(cityOrNull) {
@@ -1096,6 +1188,23 @@ function ensurePanelExtraStyles() {
       background: rgba(37, 99, 235, 0.9);
       border-color: rgba(191, 219, 254, 0.9);
     }
+      /* Country filter icons (scoped so city tags stay unchanged) */
+#country-filter-row .tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#country-filter-row .filter-ico {
+  font-size: 13px;
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+
+#country-filter-row .filter-lbl {
+  line-height: 1;
+}
+
 
     .fav-btn {
       border: 0;
@@ -1265,7 +1374,137 @@ function ensurePanelExtraStyles() {
   margin: 0.35rem 0 0.55rem;
 }
 
+/* ---------- Accordion filter groups ---------- */
 
+#country-filter-row .filter-group {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(2, 6, 23, 0.25);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+#country-filter-row .filter-group + .filter-group {
+  margin-top: 8px;
+}
+
+.filter-group-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.filter-group-summary::-webkit-details-marker { display: none; }
+
+/* little caret */
+.filter-group-summary::after {
+  content: "▾";
+  opacity: 0.75;
+  font-size: 12px;
+  transform: translateY(-1px);
+}
+details[open] > .filter-group-summary::after {
+  content: "▴";
+}
+
+/* avoid extra bottom-margin from the old title style inside summary */
+.filter-group-summary .filter-group-title {
+  margin: 0;
+}
+
+/* tighter spacing for pills inside accordion */
+#country-filter-row .filter-group-row {
+  margin: 8px 0 0;
+}
+
+
+  /* ---------- Country filters: grouping + subtle color cues ---------- */
+
+.country-filter-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.filter-group-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin: 0 0 6px;
+}
+
+.filter-group-row {
+  margin: 0;
+}
+
+/* Scoped color system: ONLY affects country filters */
+#country-filter-row .tag-pill {
+  --filter-bg: rgba(15, 23, 42, 0.9);
+  --filter-border: rgba(148, 163, 184, 0.6);
+  --filter-active-bg: rgba(37, 99, 235, 0.9);
+  --filter-active-border: rgba(191, 219, 254, 0.9);
+
+  background: var(--filter-bg);
+  border-color: var(--filter-border);
+}
+
+#country-filter-row .tag-pill.active {
+  background: var(--filter-active-bg);
+  border-color: var(--filter-active-border);
+}
+
+#country-filter-row .tag-pill[data-filter="beach"] {
+  --filter-bg: rgba(56, 189, 248, 0.14);
+  --filter-border: rgba(56, 189, 248, 0.45);
+  --filter-active-bg: rgba(56, 189, 248, 0.32);
+  --filter-active-border: rgba(56, 189, 248, 0.75);
+}
+#country-filter-row .tag-pill[data-filter="nature"] {
+  --filter-bg: rgba(34, 197, 94, 0.14);
+  --filter-border: rgba(34, 197, 94, 0.45);
+  --filter-active-bg: rgba(34, 197, 94, 0.28);
+  --filter-active-border: rgba(34, 197, 94, 0.75);
+}
+#country-filter-row .tag-pill[data-filter="adventure"] {
+  --filter-bg: rgba(249, 115, 22, 0.14);
+  --filter-border: rgba(249, 115, 22, 0.45);
+  --filter-active-bg: rgba(249, 115, 22, 0.28);
+  --filter-active-border: rgba(249, 115, 22, 0.75);
+}
+#country-filter-row .tag-pill[data-filter="culture"] {
+  --filter-bg: rgba(168, 85, 247, 0.14);
+  --filter-border: rgba(168, 85, 247, 0.45);
+  --filter-active-bg: rgba(168, 85, 247, 0.28);
+  --filter-active-border: rgba(168, 85, 247, 0.75);
+}
+#country-filter-row .tag-pill[data-filter="food"] {
+  --filter-bg: rgba(234, 179, 8, 0.14);
+  --filter-border: rgba(234, 179, 8, 0.45);
+  --filter-active-bg: rgba(234, 179, 8, 0.28);
+  --filter-active-border: rgba(234, 179, 8, 0.75);
+}
+#country-filter-row .tag-pill[data-filter="design"] {
+  --filter-bg: rgba(59, 130, 246, 0.14);
+  --filter-border: rgba(59, 130, 246, 0.45);
+  --filter-active-bg: rgba(59, 130, 246, 0.28);
+  --filter-active-border: rgba(59, 130, 246, 0.78);
+}
+#country-filter-row .tag-pill[data-filter="family"] {
+  --filter-bg: rgba(236, 72, 153, 0.12);
+  --filter-border: rgba(236, 72, 153, 0.42);
+  --filter-active-bg: rgba(236, 72, 153, 0.26);
+  --filter-active-border: rgba(236, 72, 153, 0.72);
+}
+#country-filter-row .tag-pill[data-filter="romantic"] {
+  --filter-bg: rgba(244, 63, 94, 0.12);
+  --filter-border: rgba(244, 63, 94, 0.42);
+  --filter-active-bg: rgba(244, 63, 94, 0.26);
+  --filter-active-border: rgba(244, 63, 94, 0.72);
+}
   `;
   document.head.appendChild(style);
 }
@@ -1855,24 +2094,85 @@ panelInnerEl.innerHTML = `
     <p>${info.summary}</p>
 
     <h3 class="panel-section-title">Filters</h3>
-    <div class="tag-row" id="country-filter-row">
-      ${COUNTRY_FILTER_DEFS.map(f => `
-        <button
-          class="tag-pill"
-          data-filter="${f.id}"
-          type="button"
-        >
-          ${f.label}
-        </button>
-      `).join('')}
+    <p class="muted filter-help" style="margin:0 0 0.45rem;">
+      Filter cities based on your desired vacation type. You can select multiple.
+    </p>
+
+<div id="country-filter-row" class="country-filter-groups">
+
+  <details class="filter-group" open>
+    <summary class="filter-group-summary">
+      <span class="filter-group-title">Show</span>
+    </summary>
+    <div class="tag-row filter-group-row">
+      <button class="tag-pill" data-filter="all" type="button">
+        <span class="filter-ico" aria-hidden="true">✨</span>
+        <span class="filter-lbl">All</span>
+      </button>
     </div>
+  </details>
 
-    <p class="muted" id="country-city-count" style="margin:0 0 0.35rem;"></p>
+  <details class="filter-group" open>
+    <summary class="filter-group-summary">
+      <span class="filter-group-title">Nature</span>
+    </summary>
+    <div class="tag-row filter-group-row">
+      <button class="tag-pill" data-filter="beach" type="button">
+        <span class="filter-ico" aria-hidden="true">🏖️</span>
+        <span class="filter-lbl">Beach</span>
+      </button>
+      <button class="tag-pill" data-filter="nature" type="button">
+        <span class="filter-ico" aria-hidden="true">🌿</span>
+        <span class="filter-lbl">Nature</span>
+      </button>
+      <button class="tag-pill" data-filter="adventure" type="button">
+        <span class="filter-ico" aria-hidden="true">⛰️</span>
+        <span class="filter-lbl">Adventure</span>
+      </button>
+    </div>
+  </details>
 
-    <h3 class="panel-section-title">Cities in ${countryName}</h3>
-    <ul class="country-city-list" id="country-city-list"></ul>
-  </div>
+  <details class="filter-group">
+    <summary class="filter-group-summary">
+      <span class="filter-group-title">City life</span>
+    </summary>
+    <div class="tag-row filter-group-row">
+      <button class="tag-pill" data-filter="culture" type="button">
+        <span class="filter-ico" aria-hidden="true">🏛️</span>
+        <span class="filter-lbl">Culture</span>
+      </button>
+      <button class="tag-pill" data-filter="food" type="button">
+        <span class="filter-ico" aria-hidden="true">🍴</span>
+        <span class="filter-lbl">Food</span>
+      </button>
+      <button class="tag-pill" data-filter="design" type="button">
+        <span class="filter-ico" aria-hidden="true">🎨</span>
+        <span class="filter-lbl">Design</span>
+      </button>
+    </div>
+  </details>
+
+  <details class="filter-group">
+    <summary class="filter-group-summary">
+      <span class="filter-group-title">Travel style</span>
+    </summary>
+    <div class="tag-row filter-group-row">
+      <button class="tag-pill" data-filter="family" type="button">
+        <span class="filter-ico" aria-hidden="true">👨‍👩‍👧‍👦</span>
+        <span class="filter-lbl">Family</span>
+      </button>
+      <button class="tag-pill" data-filter="romantic" type="button">
+        <span class="filter-ico" aria-hidden="true">💘</span>
+        <span class="filter-lbl">Romantic</span>
+      </button>
+    </div>
+  </details>
+
+</div>
+
+
 `;
+
 
 
   panelEl.classList.add('open');
@@ -2151,6 +2451,7 @@ const clickTargets = [];
 function setupClickTargets(cities) {
   clickTargets.length = 0;
   cityMarkers.clear();
+  cityGroups.clear();
 
   globe
     .objectsData(cities)
@@ -2301,6 +2602,130 @@ function distanceKm(a, b) {
   return R * c;
 }
 
+// ---------- City marker "spread" to reduce overlap ----------
+
+// If cities are closer than this, we spread them visually.
+// (Europe: 80–160km is a good range to start with)
+const CITY_SPREAD_THRESHOLD_KM = 120;
+
+// Spread radius in world units (relative to your marker size)
+const CITY_SPREAD_RADIUS_MULT = 2.0;
+
+const _tmpWorldPos = new THREE.Vector3();
+const _tmpUp = new THREE.Vector3();
+const _tmpRef = new THREE.Vector3();
+const _tmpEast = new THREE.Vector3();
+const _tmpNorth = new THREE.Vector3();
+const _tmpTarget = new THREE.Vector3();
+const _tmpOffsetWorld = new THREE.Vector3();
+
+function setGroupMarkerOffset(group, localOffset) {
+  // Move BOTH the sprite + the invisible hit sphere so hover/click still lines up
+  for (const child of group.children) {
+    if ((child.isSprite || child.isMesh) && child.userData?.city) {
+      child.position.copy(localOffset);
+    }
+  }
+}
+
+function computeLocalTangentOffset(group, dx, dy, spreadWorld) {
+  // dx,dy are in a 2D plane; we map that to the tangent plane at this marker location.
+  group.updateMatrixWorld(true);
+  group.getWorldPosition(_tmpWorldPos);
+
+  _tmpUp.copy(_tmpWorldPos).normalize();
+
+  // Choose a reference axis that won't be parallel to "up"
+  // (prevents near-zero cross product near poles)
+  if (Math.abs(_tmpUp.y) > 0.92) _tmpRef.set(1, 0, 0);
+  else _tmpRef.set(0, 1, 0);
+
+  _tmpEast.crossVectors(_tmpRef, _tmpUp).normalize();
+  _tmpNorth.crossVectors(_tmpUp, _tmpEast).normalize();
+
+  _tmpOffsetWorld
+    .copy(_tmpEast).multiplyScalar(dx * spreadWorld)
+    .add(_tmpNorth.clone().multiplyScalar(dy * spreadWorld));
+
+  _tmpTarget.copy(_tmpWorldPos).add(_tmpOffsetWorld);
+
+  // Convert that world point into the group's local space
+  return group.worldToLocal(_tmpTarget.clone());
+}
+
+function clusterCitiesByDistance(cities, kmThreshold) {
+  const n = cities.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (distanceKm(cities[i], cities[j]) < kmThreshold) union(i, j);
+    }
+  }
+
+  const groups = new Map();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(cities[i]);
+  }
+  return [...groups.values()];
+}
+
+function applyCityMarkerSpread(visibleCities) {
+  if (!visibleCities || visibleCities.length < 2) return;
+
+  // First reset all visible cities to center (no offset)
+  for (const city of visibleCities) {
+    const key = makeCityKey(city);
+    const group = cityGroups.get(key);
+    if (group) setGroupMarkerOffset(group, new THREE.Vector3(0, 0, 0));
+  }
+
+  const clusters = clusterCitiesByDistance(visibleCities, CITY_SPREAD_THRESHOLD_KM);
+
+  for (const cluster of clusters) {
+    if (cluster.length < 2) continue;
+
+    // Stable order so offsets don't "shuffle" between sessions
+    cluster.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    for (let i = 0; i < cluster.length; i++) {
+      const city = cluster[i];
+      const key = makeCityKey(city);
+      const group = cityGroups.get(key);
+      const sprite = cityMarkers.get(key);
+      if (!group || !sprite) continue;
+
+      const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
+      const spreadWorld = baseScale * CITY_SPREAD_RADIUS_MULT;
+
+      // Evenly distribute around a small circle
+      const angle = (Math.PI * 2 * i) / cluster.length;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+
+      const localOffset = computeLocalTangentOffset(group, dx, dy, spreadWorld);
+      setGroupMarkerOffset(group, localOffset);
+    }
+  }
+}
+
+
 function formatHours(hours) {
   const totalMinutes = Math.round(hours * 60);
   const h = Math.floor(totalMinutes / 60);
@@ -2369,6 +2794,8 @@ function recomputeTripArcs() {
     .arcDashAnimateTime(1300);
 }
 
+
+
 function renderTripList() {
   if (!tripStopsEl) return;
   tripStopsEl.innerHTML = '';
@@ -2409,6 +2836,500 @@ function recomputeTripUIAndArcs() {
   positionTripTray();
 }
 
+/* ---------- Journal (saved trips + saved cities) ---------- */
+
+const JOURNAL_KEY = 'travel-globe:journeys';
+
+function loadJourneys() {
+  try {
+    const raw = localStorage.getItem(JOURNAL_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveJourneys(list) {
+  try {
+    localStorage.setItem(JOURNAL_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+}
+
+function formatDateTime(ts) {
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return '';
+  }
+}
+
+function serializeTrip(plan) {
+  return plan.map(c => ({
+    name: c.name,
+    country: c.country,
+    lat: c.lat,
+    lng: c.lng
+  }));
+}
+
+function resolveStopToCity(stop) {
+  const found = allCities?.find(
+    c => c.name === stop.name && c.country === stop.country
+  );
+  return found || stop;
+}
+
+let journalActiveTab = 'journeys';
+
+function ensureJournalOverlay() {
+  if (document.getElementById('journal-overlay')) return;
+
+  // styles
+  const style = document.createElement('style');
+  style.id = 'journal-styles';
+  style.textContent = `
+    #journal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(2,6,23,0.70);
+      backdrop-filter: blur(10px);
+    }
+    #journal-overlay.open { display: flex; }
+
+    #journal-modal {
+      width: min(720px, 92vw);
+      max-height: min(78vh, 720px);
+      overflow: hidden;
+
+      background: rgba(11, 29, 74, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.70);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+      border-radius: 16px;
+
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Helvetica, Arial, sans-serif;
+      color: #e6e9ef;
+
+      display: flex;
+      flex-direction: column;
+    }
+
+    .journal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+    }
+    .journal-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .journal-title .h {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.9;
+    }
+    .journal-title .sub {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .journal-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .journal-btn {
+      border: 1px solid rgba(148, 163, 184, 0.65);
+      background: rgba(15, 23, 42, 0.65);
+      color: #e5e7eb;
+      padding: 8px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 11px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .journal-btn:hover {
+      background: rgba(37, 99, 235, 0.22);
+      border-color: rgba(191, 219, 254, 0.95);
+    }
+    .journal-btn.danger:hover {
+      background: rgba(248, 113, 113, 0.18);
+      border-color: rgba(252, 165, 165, 0.95);
+    }
+
+    .journal-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .journal-tab {
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(15, 23, 42, 0.45);
+      color: rgba(226, 232, 240, 0.92);
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+    }
+
+    .journal-tab.active {
+      background: rgba(37, 99, 235, 0.28);
+      border-color: rgba(191, 219, 254, 0.95);
+      color: #e5e7eb;
+    }
+
+    .journal-body {
+      padding: 12px 14px 14px;
+      overflow: auto;
+      flex: 1 1 auto;
+    }
+
+    .journey-list, .saved-city-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .journey-card, .saved-city-item {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+
+      padding: 10px 10px;
+      border-radius: 14px;
+      background: rgba(2, 6, 23, 0.40);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .journey-main, .saved-city-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .journey-name, .saved-city-name {
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .journey-meta, .saved-city-country {
+      font-size: 12px;
+      opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .journey-ops, .saved-city-ops {
+      display: flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .journal-empty {
+      opacity: 0.85;
+      font-size: 13px;
+      padding: 10px 4px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // markup
+  const overlay = document.createElement('div');
+  overlay.id = 'journal-overlay';
+  overlay.innerHTML = `
+    <div id="journal-modal" role="dialog" aria-modal="true" aria-label="Journal">
+      <div class="journal-head">
+        <div class="journal-title">
+          <div class="h">Journal</div>
+          <div class="sub">Here you can find the saved journeys and cities.</div>
+        </div>
+        <div class="journal-actions">
+          <button class="journal-btn" id="journal-save" type="button">Save current</button>
+          <button class="journal-btn" id="journal-close" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="journal-tabs" role="tablist" aria-label="Journal tabs">
+        <button class="journal-tab active" data-tab="journeys" type="button" role="tab" aria-selected="true">
+          Journeys
+        </button>
+        <button class="journal-tab" data-tab="cities" type="button" role="tab" aria-selected="false">
+          Saved cities
+        </button>
+      </div>
+
+      <div class="journal-body">
+        <div class="journal-panel" data-panel="journeys">
+          <ul class="journey-list" id="journey-list"></ul>
+          <div class="journal-empty" id="journey-empty" style="display:none;">
+            No saved journeys yet. Build a trip, then press “Save current”.
+          </div>
+        </div>
+
+        <div class="journal-panel" data-panel="cities" style="display:none;">
+          <ul class="saved-city-list" id="saved-city-list"></ul>
+          <div class="journal-empty" id="saved-city-empty" style="display:none;">
+            No saved cities yet. Open a city and press “☆ Save”.
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // close on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeJournal();
+  });
+
+  // close on Escape
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeJournal();
+  });
+
+  overlay.querySelector('#journal-close')?.addEventListener('click', closeJournal);
+  overlay.querySelector('#journal-save')?.addEventListener('click', saveCurrentTripToJournal);
+
+  // tabs
+  overlay.querySelector('.journal-tabs')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.journal-tab');
+    if (!btn) return;
+    const tab = btn.getAttribute('data-tab') || 'journeys';
+    setJournalTab(tab);
+  });
+}
+
+function setJournalTab(tab) {
+  journalActiveTab = tab;
+
+  const overlay = document.getElementById('journal-overlay');
+  if (!overlay) return;
+
+  overlay.querySelectorAll('.journal-tab').forEach(btn => {
+    const t = btn.getAttribute('data-tab');
+    const active = t === tab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  overlay.querySelectorAll('.journal-panel').forEach(panel => {
+    panel.style.display = (panel.getAttribute('data-panel') === tab) ? '' : 'none';
+  });
+
+  if (tab === 'journeys') renderJournalList();
+  if (tab === 'cities') renderSavedCitiesList();
+}
+
+function openJournal(tab = 'journeys') {
+  ensureJournalOverlay();
+  const overlay = document.getElementById('journal-overlay');
+  if (!overlay) return;
+
+  overlay.classList.add('open');
+  setJournalTab(tab);
+}
+
+function closeJournal() {
+  const overlay = document.getElementById('journal-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+}
+
+function renderJournalList() {
+  const listEl = document.getElementById('journey-list');
+  const emptyEl = document.getElementById('journey-empty');
+  if (!listEl || !emptyEl) return;
+
+  const journeys = loadJourneys();
+
+  if (!journeys.length) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  listEl.innerHTML = journeys.map(j => {
+    const stopsPreview = (j.stops || [])
+      .slice(0, 4)
+      .map(s => s.name)
+      .join(' → ');
+    const more = (j.stops || []).length > 4 ? '…' : '';
+    return `
+      <li class="journey-card" data-id="${j.id}">
+        <div class="journey-main">
+          <div class="journey-name">${escapeHtml(j.name || 'Untitled trip')}</div>
+          <div class="journey-meta">
+            ${(j.stops?.length || 0)} stops · ${escapeHtml(formatDateTime(j.createdAt))} · ${escapeHtml(stopsPreview + more)}
+          </div>
+        </div>
+        <div class="journey-ops">
+          <button class="journal-btn" data-action="load" type="button">Load</button>
+          <button class="journal-btn danger" data-action="delete" type="button">Delete</button>
+        </div>
+      </li>
+    `;
+  }).join('');
+
+  // event delegation
+  listEl.onclick = (e) => {
+    const btn = e.target.closest('button[data-action]');
+    const card = e.target.closest('.journey-card');
+    if (!btn || !card) return;
+
+    const id = card.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    if (!id || !action) return;
+
+    if (action === 'load') loadJourneyIntoTrip(id);
+    if (action === 'delete') deleteJourney(id);
+  };
+}
+
+function renderSavedCitiesList() {
+  const listEl = document.getElementById('saved-city-list');
+  const emptyEl = document.getElementById('saved-city-empty');
+  if (!listEl || !emptyEl) return;
+
+  const favorites = allCities.filter(c => favoriteCities.has(makeCityKey(c)));
+
+  if (!favorites.length) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  listEl.innerHTML = favorites.map(c => {
+    const key = makeCityKey(c);
+    return `
+      <li class="saved-city-item" data-key="${escapeHtml(key)}">
+        <div class="saved-city-main">
+          <div class="saved-city-name">${escapeHtml(c.name)}</div>
+          <div class="saved-city-country">${escapeHtml(c.country)}</div>
+        </div>
+        <div class="saved-city-ops">
+          <button class="journal-btn" data-action="fly" type="button">Go</button>
+          <button class="journal-btn danger" data-action="remove" type="button">Remove</button>
+        </div>
+      </li>
+    `;
+  }).join('');
+
+  listEl.onclick = (e) => {
+    const btn = e.target.closest('button[data-action]');
+    const row = e.target.closest('.saved-city-item');
+    if (!btn || !row) return;
+
+    const action = btn.getAttribute('data-action');
+    const key = row.getAttribute('data-key');
+    if (!action || !key) return;
+
+    const city = allCities.find(c => makeCityKey(c) === key);
+    if (!city) return;
+
+    if (action === 'fly') {
+      startFlyToCity(city);
+      closeJournal();
+      return;
+    }
+
+    if (action === 'remove') {
+      favoriteCities.delete(key);
+      saveFavoriteSet();
+      updateCityMarker(city);
+      renderFavoriteBar();
+      renderSavedCitiesList();
+    }
+  };
+}
+
+function saveCurrentTripToJournal() {
+  if (!tripPlan.length) return;
+
+  const name = prompt('Name this journey:', `Trip (${tripPlan.length} stops)`);
+  if (name == null) return;
+
+  const journeys = loadJourneys();
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: name.trim() || `Trip (${tripPlan.length} stops)`,
+    createdAt: Date.now(),
+    stops: serializeTrip(tripPlan)
+  };
+  journeys.unshift(entry);
+  saveJourneys(journeys);
+  renderJournalList();
+}
+
+function loadJourneyIntoTrip(id) {
+  const journeys = loadJourneys();
+  const j = journeys.find(x => x.id === id);
+  if (!j) return;
+
+  tripPlan.length = 0;
+  const stops = Array.isArray(j.stops) ? j.stops : [];
+  stops.forEach(s => {
+    const city = resolveStopToCity(s);
+    tripPlan.push(city);
+  });
+
+  recomputeTripUIAndArcs();
+  closeJournal();
+}
+
+function deleteJourney(id) {
+  const journeys = loadJourneys();
+  const next = journeys.filter(x => x.id !== id);
+  saveJourneys(next);
+  renderJournalList();
+}
+
+// tiny helper to avoid injecting raw strings into HTML
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+
+
 // Trip tray interactions
 if (tripClearBtn) {
   tripClearBtn.addEventListener('click', () => {
@@ -2416,6 +3337,20 @@ if (tripClearBtn) {
     recomputeTripUIAndArcs();
   });
 }
+
+if (tripJournalBtn) {
+  tripJournalBtn.addEventListener('click', () => {
+    openJournal();
+  });
+}
+
+if (journalOpenBtn) {
+  journalOpenBtn.addEventListener('click', () => {
+    openJournal('cities');
+  });
+}
+
+
 
 if (tripStopsEl) {
   tripStopsEl.addEventListener('click', ev => {
@@ -2581,6 +3516,7 @@ function revealCountryCitiesWithAnimation(countryFeature) {
   const { allInCountry, visible } = getVisibleCitiesForCountryName(countryName);
 
   const visibleKeys = new Set(visible.map(makeCityKey));
+  applyCityMarkerSpread(visible);
 
   // Hide everything that's not part of this country OR filtered out
   for (const [key, sprite] of cityMarkers.entries()) {
@@ -2829,6 +3765,11 @@ renderer.domElement.addEventListener('mouseleave', () => {
 
     recomputeTripUIAndArcs();
     renderFavoriteBar();
+    const jOverlay = document.getElementById('journal-overlay');
+    if (jOverlay && jOverlay.classList.contains('open') && journalActiveTab === 'cities') {
+      renderSavedCitiesList();
+    }
+
 
     function tick() {
       requestAnimationFrame(tick);
