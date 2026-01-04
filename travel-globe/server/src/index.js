@@ -120,7 +120,7 @@ function tagsForCityName(cityName) {
   return CITY_TAG_LOOKUP.get(normCityKey(cityName)) || [];
 }
 
-// ---------- FALLBACK: your original 12 prototype cities ----------
+// ---------- FALLBACK ----------
 
 const FALLBACK_CITIES = [
   // -------- IRELAND --------
@@ -256,7 +256,7 @@ function buildCitiesFromNaturalEarth() {
       const iso2 = String(props.ISO_A2 || props.iso_a2 || '').toUpperCase();
       if (!EUROPE_ISO2.has(iso2)) continue;
 
-      // Country name we'll send to the frontend – try ADM0NAME first
+      // determine country name
       const countryName =
         props.ADM0NAME ||
         props.SOV0NAME ||
@@ -318,7 +318,7 @@ function buildCitiesFromNaturalEarth() {
           lng: c.lng,
           // simple formatted population, or null if unknown
           pop: pop ? `~${Math.round(pop).toLocaleString('en-US')}` : null,
-          // optional generic summary – frontend already has a fallback string
+        
           summary: null
         });
       }
@@ -338,13 +338,13 @@ function buildCitiesFromNaturalEarth() {
   }
 }
 
-// build the actual cities array used by /api/cities
+// ---------- Prepare city list with tags ----------
 const GENERATED_CITIES = buildCitiesFromNaturalEarth();
 const cities = GENERATED_CITIES && GENERATED_CITIES.length
   ? GENERATED_CITIES
   : FALLBACK_CITIES;
 
-// Attach vacation-type tags to each city (non-breaking: extra field)
+// Attach tags to each city
 const citiesWithTags = cities.map(c => ({
   ...c,
   tags: tagsForCityName(c.name)
@@ -358,7 +358,7 @@ app.use(express.json());
 app.use(morgan('tiny'));
 app.use('/api/', rateLimit({ windowMs: 60_000, max: 60 }));
 
-// --- simple landing page at "/" ---
+// ---------- API endpoints ----------
 app.get('/', (_req, res) => {
   res.type('html').send(`<!doctype html>
   <html>
@@ -426,7 +426,7 @@ app.get('/api/geocode', async (req, res) => {
   }
 });
 
-// --- OpenWeather current weather proxy (used by the frontend panel) ---
+// --- OpenWeather current weather proxy  ---
 app.get('/api/weather', async (req, res) => {
   try {
     if (!OPENWEATHER_KEY) {
