@@ -49,46 +49,60 @@ function normCityKey(name) {
     .trim();
 }
 
-const VACATION_TAG_CITY_NAMES = {
+const VACATION_TAG_CITY_NAMES ={
   beach: [
-    'Stavanger', 'Gothenburg', 'Malmö', 'İzmir', 'Athens', 'Thessaloniki', 'Piraeus', 'Varna',
-    'Split', 'Rijeka', 'Naples', 'Marseille', 'Barcelona', 'Seville', 'Lisbon', 'Porto', 'Braga'
+    "Stavanger","Gothenburg","Malmö","Liepāja","Klaipėda","İzmir","Athens",
+    "Thessaloniki","Piraeus","Varna","Split","Rijeka","Naples","Marseille",
+    "Barcelona","Lisbon","Porto","Varna","Klaipėda","Liepāja"
   ],
+
   nature: [
-    'Oslo', 'Bergen', 'Stavanger', 'Stockholm', 'Tampere', 'Reykjavík', 'Akureyri', 'Keflavík',
-    'Geneva', 'Zurich', 'Split', 'Ljubljana', 'Maribor', 'Podgorica', 'Klaipėda', 'Liepāja',
-    'Novosibirsk', 'Dnipro'
+    "Oslo","Bergen","Stavanger","Stockholm","Tampere","Turku","Reykjavík",
+    "Akureyri","Keflavík","Geneva","Zurich","Basel","Ljubljana","Maribor",
+    "Podgorica","Peja","Dnipro","Novosibirsk","Miskolc","Prešov","Košice",
+    "Graz","Linz","Cork","Limerick","Debrecen","Bălți","Gomel","Mogilev"
   ],
+
   culture: [
-    'Moscow', 'Saint Petersburg', 'Novosibirsk', 'Tallinn', 'Tartu', 'Narva', 'Riga', 'Daugavpils',
-    'Vilnius', 'Kaunas', 'Minsk', 'Gomel', 'Mogilev', 'Kyiv', 'Kharkiv', 'Dnipro', 'Chișinău',
-    'Tiraspol', 'Bălți', 'Istanbul', 'Ankara', 'Athens', 'Thessaloniki', 'Piraeus', 'Sofia',
-    'Plovdiv', 'Varna', 'Bucharest', 'Iași', 'Cluj-Napoca', 'Katowice', 'Warsaw', 'Łódź',
-    'Tirana', 'Elbasan', 'Shkodër', 'Pristina', 'Prizren', 'Peja', 'Podgorica', 'Belgrade', 'Niš',
-    'Novi Sad', 'Budapest', 'Miskolc', 'Debrecen', 'Bratislava', 'Košice', 'Prešov', 'Prague',
-    'Ostrava', 'Brno', 'Vienna', 'Linz', 'Graz', 'Ljubljana', 'Maribor', 'Zagreb', 'Rome', 'Milan',
-    'Naples', 'Berlin', 'Stuttgart', 'Frankfurt', 'The Hague', 'Amsterdam', 'Rotterdam', 'Brussels',
-    'Antwerp', 'Liège', 'Luxembourg', 'Diekirch', 'Grevenmacher', 'Paris', 'Lyon', 'Marseille',
-    'Madrid', 'Barcelona', 'Seville', 'London', 'Birmingham', 'Manchester', 'Dublin', 'Cork',
-    'Limerick', 'Oslo', 'Stockholm', 'Gothenburg', 'Malmö', 'Helsinki', 'Tampere', 'Turku'
+    "Moscow","Saint Petersburg","Tallinn","Tartu","Narva","Riga","Vilnius",
+    "Kaunas","Minsk","Kyiv","Kharkiv","Chișinău","Tiraspol","Istanbul",
+    "Ankara","Athens","Plovdiv","Sofia","Bucharest","Iași","Cluj-Napoca",
+    "Warsaw","Łódź","Katowice","Belgrade","Niš","Novi Sad","Budapest",
+    "Bratislava","Prague","Brno","Vienna","Rome","Paris","Madrid","Seville",
+    "London","Dublin","Zagreb","Ljubljana"
   ],
-  adventure: [
-    'Bergen', 'Stavanger', 'Reykjavík', 'Akureyri', 'Peja', 'Split', 'Geneva', 'Zurich', 'Naples'
-  ],
+
   food: [
-    'Gothenburg', 'Malmö', 'Tampere', 'Istanbul', 'Athens', 'Thessaloniki', 'Rome', 'Milan', 'Paris',
-    'Lyon', 'Lisbon', 'Porto', 'Barcelona', 'Vienna', 'Brussels'
+    "Gothenburg","Malmö","Riga","Vilnius","Istanbul","Thessaloniki","Athens",
+    "Rome","Milan","Paris","Lyon","Barcelona","Lisbon","Porto","Vienna",
+    "Brussels","Antwerp","Budapest","Naples","Marseille","Madrid","Valencia",
+    "Cluj-Napoca","Debrecen","Tampere","Turku"
   ],
+
   design: [
-    'Helsinki', 'Vienna', 'Prague', 'Milan', 'Paris', 'Rotterdam', 'Amsterdam', 'Barcelona', 'Brussels'
+    "Helsinki","Stockholm","Amsterdam","Rotterdam","The Hague","Milan",
+    "Paris","Vienna","Prague","Barcelona","Berlin","Frankfurt","Stuttgart",
+    "Zurich","Basel","Luxembourg","Brno","Linz","Graz"
   ],
+
+  adventure: [
+    "Bergen","Stavanger","Reykjavík","Akureyri","Peja","Split","Geneva",
+    "Zurich","Naples","Tirana","Shkodër","Niš","Podgorica","Miskolc",
+    "Ostrava","Košice","Prešov","Debrecen","Cluj-Napoca"
+  ],
+
   family: [
-    'Tampere', 'Gothenburg', 'Ljubljana', 'Vienna', 'Dublin', 'Split', 'Athens', 'Reykjavík'
+    "Tampere","Gothenburg","Vienna","Ljubljana","Dublin","Stockholm",
+    "Manchester","Birmingham","Bratislava","Debrecen","Turku","Helsinki",
+    "Cork","Limerick","Oslo","Zurich","Kaunas","Tartu","Paris"
   ],
+
   romantic: [
-    'Turku', 'Paris', 'Rome', 'Vienna', 'Prague', 'Barcelona', 'Lisbon'
+    "Turku","Paris","Rome","Vienna","Prague","Barcelona","Lisbon","Porto",
+    "Ljubljana","Budapest","Split","Braga","Maribor","Tallinn","Vilnius",
+    "Riga","Florence"
   ]
-};
+}
 
 // Precompute a normalized-name -> tags[] map
 const CITY_TAG_LOOKUP = new Map();
