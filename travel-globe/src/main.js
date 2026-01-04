@@ -122,7 +122,6 @@ function ensureGlobalOverlays() {
         transform: rotate(360deg);
       }
     }
-          /* --- Start gate additions --- */
 /* Make the overlay feel more "designed" */
 #loading-overlay::before {
   content: "";
@@ -213,6 +212,51 @@ function ensureGlobalOverlays() {
     grid-template-columns: 1fr;
   }
 }
+  /* ---------- READY STATE (make it obvious loading is finished) ---------- */
+
+/* Stop the spinner once we're ready */
+#loading-overlay.ready .loader {
+  animation: none !important; /* guarantees it won't keep spinning */
+  opacity: 0.25;
+}
+
+/* Make the label clearly say it's ready */
+#loading-overlay.ready .loading-label {
+  opacity: 0.95;
+}
+
+/* Make the Start button a clear call-to-action */
+#loading-overlay.ready #start-btn {
+  opacity: 1;
+  pointer-events: auto;
+  animation: startPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes startPulse {
+  0%, 100% { transform: translateY(1px); }
+  50%      { transform: translateY(-1px); }
+}
+  /* ---------- Start button appears only when ready ---------- */
+
+/* ---------- Loading vs Ready UI ---------- */
+
+/* Default (loading): show spinner + loading text, hide Start button */
+#loading-overlay #start-btn {
+  display: none;
+}
+
+/* Ready: hide spinner + loading text, show Start button */
+#loading-overlay.ready .loader,
+#loading-overlay.ready .loading-label {
+  display: none;
+}
+
+#loading-overlay.ready #start-btn {
+  display: inline-flex; /* or inline-block */
+}
+
+
+
 
   `;
   document.head.appendChild(style);
@@ -939,6 +983,53 @@ let selectedCityKey = null;
 // base scale for city markers (we animate up to this size)
 const CITY_MARKER_BASE_SCALE = GLOBE_R * 0.005;
 
+const countryMarkerScaleCache = new Map();
+
+function getCountryMarkerScale(countryFeature) {
+  const name = countryFeature?.properties?.name || '';
+  if (countryMarkerScaleCache.has(name)) return countryMarkerScaleCache.get(name);
+
+  const geom = countryFeature?.geometry;
+  const coords = geom?.coordinates;
+  if (!geom || !Array.isArray(coords)) {
+    countryMarkerScaleCache.set(name, 1);
+    return 1;
+  }
+
+  let minLat =  90, maxLat = -90, minLng =  180, maxLng = -180;
+
+  const walk = (arr) => {
+    if (!Array.isArray(arr)) return;
+    // Point: [lng, lat]
+    if (typeof arr[0] === 'number' && typeof arr[1] === 'number') {
+      const [lng, lat] = arr;
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+      return;
+    }
+    arr.forEach(walk);
+  };
+
+  walk(coords);
+
+  const latSpan = Math.max(0.1, maxLat - minLat);
+  const lngSpan = Math.max(0.1, maxLng - minLng);
+  const midLatRad = ((minLat + maxLat) * 0.5) * Math.PI / 180;
+
+  // rough “country size” proxy in degrees (good enough for scaling markers)
+  const areaLike = latSpan * lngSpan * Math.max(0.25, Math.cos(midLatRad));
+
+  // map to scale factor: small ~1.0, very large (Russia) ~1.7–1.9
+  const raw = 1 + Math.log10(areaLike / 40) * 0.35;
+  const factor = Math.min(1.9, Math.max(1.0, raw));
+
+  countryMarkerScaleCache.set(name, factor);
+  return factor;
+}
+
+
 function makeRingTexture(colorHex) {
   const size = 128;
   const canvas = document.createElement('canvas');
@@ -1453,9 +1544,11 @@ details[open] > .filter-group-summary::after {
 }
 
 #country-filter-row .tag-pill.active {
-  background: var(--filter-active-bg);
-  border-color: var(--filter-active-border);
+  filter: brightness(1.18);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.32);
+  font-weight: 700;
 }
+
 
 #country-filter-row .tag-pill[data-filter="beach"] {
   --filter-bg: rgba(56, 189, 248, 0.14);
@@ -2052,6 +2145,7 @@ function applyCountryFilters(countryFeature) {
   // Update markers on the globe
   revealCountryCitiesWithAnimation(countryFeature);
 
+
   // Update the country panel list/count if it's open
   if (panelEl && panelEl.classList.contains('open')) {
     renderCountryCityList(countryName);
@@ -2112,7 +2206,7 @@ panelInnerEl.innerHTML = `
     </div>
   </details>
 
-  <details class="filter-group" open>
+  <details class="filter-group" >
     <summary class="filter-group-summary">
       <span class="filter-group-title">Nature</span>
     </summary>
@@ -3513,6 +3607,9 @@ function revealCountryCitiesWithAnimation(countryFeature) {
   const countryNorm = normalizeCountryName(countryName);
   if (!countryName) return;
 
+  // ✅ define this ONCE per country (this was missing)
+  const countryScale = getCountryMarkerScale(countryFeature);
+
   const { allInCountry, visible } = getVisibleCitiesForCountryName(countryName);
 
   const visibleKeys = new Set(visible.map(makeCityKey));
@@ -3535,7 +3632,9 @@ function revealCountryCitiesWithAnimation(countryFeature) {
     const sprite = cityMarkers.get(key);
     if (!sprite) return;
 
-    const baseScale = sprite.userData.baseScale || CITY_MARKER_BASE_SCALE;
+    // ✅ apply per-country scaling safely
+    sprite.userData.baseScale = CITY_MARKER_BASE_SCALE * countryScale;
+    const baseScale = sprite.userData.baseScale;
 
     if (sprite.visible) {
       sprite.scale.set(baseScale, baseScale, 1);
