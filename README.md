@@ -35,14 +35,8 @@ the point of the project, so the interface was evaluated with users rather than 
 
 ## Running it locally
 
-```bash
-git clone https://github.com/KasraAmirani/A-Whole-New-World
-cd A-Whole-New-World
-npm install
-npm run dev
-```
+https://a-whole-new-world-1.onrender.com
 
-Live weather requires an OpenWeather API key. Create a `.env` file in the project root:
 
 
 
